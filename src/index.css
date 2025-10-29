@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply antialiased;
+  }
+
+  body {
+    @apply text-gray-900;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-in-out;
+  }
+
+  .glassmorphism {
+    @apply bg-white/80 backdrop-blur-lg;
+  }
+
+  /* Utilidades responsive */
+  .container-responsive {
+    @apply w-full mx-auto px-3 sm:px-4 md:px-6;
+  }
+
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+
+  .text-responsive-base {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-lg {
+    @apply text-base sm:text-lg;
+  }
+
+  .text-responsive-xl {
+    @apply text-lg sm:text-xl;
+  }
+
+  .gap-responsive {
+    @apply gap-2 sm:gap-3 md:gap-4;
+  }
+
+  .p-responsive {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+
+  .px-responsive {
+    @apply px-3 sm:px-4 md:px-6;
+  }
+
+  .py-responsive {
+    @apply py-3 sm:py-4 md:py-6;
+  }
+}
+
+/* Scrollbar responsive */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
+
+/* Smooth transitions para elementos interactivos */
+button, a, input, select, textarea {
+  @apply transition-all duration-200;
+}
+
+/* Focus visible mejorado */
+.focus-visible {
+  @apply outline-none ring-2 ring-[#2B5F7F] ring-offset-2;
+}
+
+/* Override para elementos móviles */
+@media (max-width: 639px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px; /* Previene zoom en iOS */
+  }
+}
