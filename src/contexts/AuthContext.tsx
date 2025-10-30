@@ -23,15 +23,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Login libre - acepta cualquier email/password
-    const mockUser: User = {
-      id: '1',
-      email,
-      name: email.split('@')[0],
-    };
-    
     // Simular delay de red
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    let mockUser: User | null = null;
+    
+    // Validar credenciales específicas
+    if (email === 'admin@admin.com' && password === 'admin') {
+      mockUser = {
+        id: '1',
+        email,
+        name: 'Administrador',
+        role: 'admin',
+      };
+    } else if (email === 'propietario@propietario.com' && password === 'propietario') {
+      mockUser = {
+        id: '2',
+        email,
+        name: 'Propietario',
+        role: 'propietario',
+      };
+    } else {
+      throw new Error('Credenciales inválidas. Use admin@admin.com / admin o propietario@propietario.com / propietario');
+    }
     
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));

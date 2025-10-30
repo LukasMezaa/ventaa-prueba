@@ -36,6 +36,25 @@ export type User = {
   id: string;
   email: string;
   name?: string;
+  role: 'admin' | 'propietario';
+};
+
+export type Ticket = {
+  id: string;
+  ticketNumber: string;
+  ownerName: string;
+  ownerEmail: string;
+  phone: string;
+  tower: string;
+  municipalNumber: string;
+  description: string;
+  area: string;
+  scheduledDate: string | null;
+  status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+  approvedBy: string | null;
+  approvedDate: string | null;
+  createdDate: string;
+  orderNumber: string | null;
 };
 
 // Mock data para órdenes
@@ -427,6 +446,61 @@ export const mockPropertyOwners: PropertyOwner[] = [
     warranty_years: 2,
     warranty_status: 'Activa',
     created_at: '2023-01-30T09:00:00Z',
+  },
+];
+
+// Mock data para tickets
+export const mockTickets: Ticket[] = [
+  {
+    id: '1',
+    ticketNumber: 'TKT-2024-001',
+    ownerName: 'Juan Pérez',
+    ownerEmail: 'juan.perez@email.com',
+    phone: '+56912345678',
+    tower: 'Torre A',
+    municipalNumber: '101',
+    description: 'Fuga de agua en el baño principal',
+    area: 'Plomería',
+    scheduledDate: '2024-10-15 09:00',
+    status: 'Pendiente',
+    approvedBy: null,
+    approvedDate: null,
+    createdDate: '2024-10-10 08:30',
+    orderNumber: null,
+  },
+  {
+    id: '2',
+    ticketNumber: 'TKT-2024-002',
+    ownerName: 'María González',
+    ownerEmail: 'maria.gonzalez@email.com',
+    phone: '+56987654321',
+    tower: 'Torre B',
+    municipalNumber: '205',
+    description: 'Problema con la puerta del balcón que no cierra bien',
+    area: 'Carpintería',
+    scheduledDate: '2024-10-12 14:00',
+    status: 'Aprobado',
+    approvedBy: 'admin@admin.com',
+    approvedDate: '2024-10-10 10:15',
+    createdDate: '2024-10-10 09:00',
+    orderNumber: 'ORD-2024-013',
+  },
+  {
+    id: '3',
+    ticketNumber: 'TKT-2024-003',
+    ownerName: 'Carlos Rodríguez',
+    ownerEmail: 'carlos.rodriguez@email.com',
+    phone: '+56923456789',
+    tower: 'Torre C',
+    municipalNumber: '310',
+    description: 'Reparación de lámpara en cocina',
+    area: 'Electricidad',
+    scheduledDate: null,
+    status: 'Rechazado',
+    approvedBy: 'admin@admin.com',
+    approvedDate: '2024-10-10 11:30',
+    createdDate: '2024-10-09 16:00',
+    orderNumber: null,
   },
 ];
 

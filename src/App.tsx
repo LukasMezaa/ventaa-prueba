@@ -3,20 +3,32 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import OrdersPanel from './components/OrdersPanel';
 import OwnersPanel from './components/OwnersPanel';
-import MetricsPanel from './components/MetricsPanel';
+import PortalPanel from './components/PortalPanel';
+import SchedulingPanel from './components/SchedulingPanel';
+import RequestsPanel from './components/RequestsPanel';
+import TrackingPanel from './components/TrackingPanel';
+import DashboardPanel from './components/DashboardPanel';
+import NotificationsPanel from './components/NotificationsPanel';
+import AdminPanel from './components/AdminPanel';
+import TicketsPanel from './components/TicketsPanel';
 
 function Dashboard() {
   const { loading } = useAuth();
-  const [activeSection, setActiveSection] = useState('orders');
+  const [activeSection, setActiveSection] = useState('portal');
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sectionTitles: Record<string, string> = {
-    orders: 'Órdenes de Servicio',
-    owners: 'Propietarios',
-    metrics: 'Métricas y Reportes',
+    portal: 'Portal del Propietario',
+    tickets: 'Sistema de Tickets',
+    owners: 'Gestión de Propietarios',
+    scheduling: 'Sistema de Agendamiento',
+    requests: 'Recepción de Solicitudes',
+    tracking: 'Seguimiento de Trabajos',
+    dashboard: 'Dashboard y Reportes',
+    notifications: 'Notificaciones',
+    admin: 'Administración',
   };
 
   if (loading) {
@@ -43,9 +55,15 @@ function Dashboard() {
           onMenuClick={() => setSidebarOpen(true)}
         />
         <main className="pt-16 px-3 sm:px-4 md:px-6 pb-8 transition-all duration-300">
-          {activeSection === 'orders' && <OrdersPanel searchQuery={searchQuery} />}
+          {activeSection === 'portal' && <PortalPanel />}
+          {activeSection === 'tickets' && <TicketsPanel />}
           {activeSection === 'owners' && <OwnersPanel searchQuery={searchQuery} />}
-          {activeSection === 'metrics' && <MetricsPanel />}
+          {activeSection === 'scheduling' && <SchedulingPanel />}
+          {activeSection === 'requests' && <RequestsPanel />}
+          {activeSection === 'tracking' && <TrackingPanel />}
+          {activeSection === 'dashboard' && <DashboardPanel />}
+          {activeSection === 'notifications' && <NotificationsPanel />}
+          {activeSection === 'admin' && <AdminPanel />}
         </main>
       </div>
       

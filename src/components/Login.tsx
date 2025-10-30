@@ -17,8 +17,8 @@ export default function Login() {
 
     try {
       await signIn(email, password);
-    } catch (err) {
-      setError('Error al iniciar sesión. Por favor intenta de nuevo.');
+    } catch (err: any) {
+      setError(err.message || 'Error al iniciar sesión. Por favor intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -99,10 +99,18 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500">
-              Ingresa cualquier correo y contraseña para continuar
-            </p>
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Credenciales de prueba:</p>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Administrador:</span>
+                <span className="font-mono text-gray-800">admin@admin.com / admin</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Propietario:</span>
+                <span className="font-mono text-gray-800">propietario@propietario.com / propietario</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

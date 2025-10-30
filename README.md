@@ -1,33 +1,69 @@
 # Constructora FJ - Sistema de Gestión Post-Venta
 ### Alto San Miguel I
 
-Sistema profesional de gestión post-venta para propiedades, desarrollado con React, TypeScript y Tailwind CSS.
+Sistema DEMO de gestión post-venta para propiedades, desarrollado con React, TypeScript y Tailwind CSS. Este es un sistema de demostración que muestra todas las funcionalidades principales del sistema.
 
 ## Características Principales
 
-### 🏗️ Panel de Órdenes de Servicio
-- **KPIs en tiempo real**: Total de órdenes, completadas, en proceso, pendientes y cerradas sin respuesta
-- **Tabla interactiva**: Ordenamiento bidireccional por cualquier columna
-- **Búsqueda global**: Búsqueda en tiempo real en todos los campos
-- **Filtros avanzados**: Por estado, área de especialidad, torre y rango de fechas
-- **Vista detallada**: Modal con información completa de cada orden
-- **Exportación**: Descarga de datos filtrados en formato CSV
-- **Paginación**: 20 órdenes por página
+### 🏠 Portal del Propietario
+- **Acceso web** a todos los módulos del sistema
+- **Resumen del usuario** con información de propiedad
+- **Navegación rápida** a diferentes secciones
+- **Resumen de solicitudes activas**, visitas programadas y notificaciones
 
-### 👥 Panel de Propietarios
-- **Vistas duales**: Modo tarjetas o tabla según preferencia
-- **KPIs**: Total de propietarios, garantías activas y vencidas
-- **Información completa**: Datos de contacto, propiedad y garantía
-- **Estado de garantía**: Visualización clara de años restantes
-- **Vista detallada**: Modal con historial completo del propietario
+### 👥 Gestión de Propietarios (COMPLETAMENTE FUNCIONAL)
+- **CRUD completo**: Crear, leer, actualizar y eliminar propietarios
+- **Base de datos con**: nombre, teléfono, torre, número departamento, dirección municipal
+- **Búsqueda rápida** de propietarios
+- **Actualización de datos** 
+- **Identificación única** por propietario
+- **Vistas duales**: Modo tarjetas o tabla
+- **Exportación** de datos
 
-### 📊 Panel de Métricas y Reportes
-- **Gráfico de tendencias**: Evolución mensual de órdenes (últimos 12 meses)
-- **Distribución por estado**: Gráfico circular interactivo
-- **Rendimiento por área**: Gráfico de barras con órdenes por especialidad
-- **Tabla de rendimiento**: Análisis detallado por área con porcentajes de completitud
-- **Filtros de período**: Mes, trimestre o año
-- **Exportación**: Descarga de reportes en formato JSON
+### 📅 Sistema de Agendamiento
+- **Calendario** con disponibilidad de la empresa
+- **Selección de día y horario** disponible
+- **Programación de primera visita** y trabajos de ejecución
+- **Alertas automáticas** de citas programadas
+- **Reprogramación de visitas**
+- **Lista de citas programadas**
+
+### 📝 Recepción y Registro de Solicitudes
+- **Ingreso automático** desde portal del propietario
+- **Ingreso manual** por secretaria
+- **Asignación automática** de número de orden
+- **Registro de observaciones** del propietario
+- **Fecha de ingreso automática**
+- **Estado inicial**: "Pendiente de visita"
+
+### 🔧 Seguimiento de Trabajos
+- **Estados del proceso**: Pendiente de visita, En ejecución, Terminada, No aplica
+- **Cambio de estados** con justificación
+- **Registro de fecha** de cada cambio de estado
+- **Bitácora de actividades** diarias
+- **Detalle de trabajos** realizados
+- **Subida de documentos** al finalizar
+
+### 📊 Dashboard y Reportes (Visual)
+- **Resumen ejecutivo**: Cantidad en ejecución, pendientes, cerradas
+- **Estadísticas de incidencias**: Por tipo de problema, por periodo
+- **Análisis de tendencias** mensuales
+- **Identificación de problemas recurrentes**
+- **Exportación de reportes**
+
+### 🔔 Notificaciones (Visual)
+- **Alertas de nuevas solicitudes**
+- **Recordatorios de visitas** programadas
+- **Notificaciones de cambio** de estado
+- **Alertas de mensajes** nuevos en chat
+- **Centro de configuración** de alertas
+
+### ⚙️ Administración y Permisos
+- **Roles de usuario**: Propietario (lectura/ingreso), Administrador
+- **Control de acceso** por rol
+- **Gestión de usuarios**
+- **Configuración del sistema**
+- **Actualización centralizada** por encargado de postventa
 
 ## Tecnologías Utilizadas
 
@@ -88,19 +124,24 @@ npm run typecheck
 ```
 src/
 ├── components/
-│   ├── Login.tsx           # Pantalla de autenticación
-│   ├── Sidebar.tsx         # Navegación lateral
-│   ├── Header.tsx          # Barra superior con búsqueda
-│   ├── OrdersPanel.tsx     # Panel de órdenes de servicio
-│   ├── OwnersPanel.tsx     # Panel de propietarios
-│   └── MetricsPanel.tsx    # Panel de métricas y reportes
+│   ├── Login.tsx               # Pantalla de autenticación
+│   ├── Sidebar.tsx             # Navegación lateral
+│   ├── Header.tsx              # Barra superior con búsqueda
+│   ├── PortalPanel.tsx         # Portal del propietario
+│   ├── OwnersPanel.tsx         # Gestión de propietarios (CRUD funcional)
+│   ├── SchedulingPanel.tsx     # Sistema de agendamiento
+│   ├── RequestsPanel.tsx       # Recepción de solicitudes
+│   ├── TrackingPanel.tsx       # Seguimiento de trabajos
+│   ├── DashboardPanel.tsx      # Dashboard y reportes
+│   ├── NotificationsPanel.tsx  # Sistema de notificaciones
+│   └── AdminPanel.tsx          # Administración y permisos
 ├── contexts/
-│   └── AuthContext.tsx     # Contexto de autenticación
+│   └── AuthContext.tsx         # Contexto de autenticación
 ├── lib/
-│   └── mockData.ts         # Datos de prueba mock
-├── App.tsx                 # Componente principal
-├── main.tsx                # Punto de entrada
-└── index.css               # Estilos globales
+│   └── mockData.ts             # Datos de prueba mock
+├── App.tsx                     # Componente principal
+├── main.tsx                    # Punto de entrada
+└── index.css                   # Estilos globales
 ```
 
 ## Características de Diseño

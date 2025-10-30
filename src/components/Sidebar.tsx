@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, Users, BarChart3, LogOut, X } from 'lucide-react';
+import { Building2, ClipboardList, Users, BarChart3, LogOut, X, Home, Calendar, FileText, Wrench, Bell, Settings, Ticket } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
@@ -12,9 +12,15 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
   const { signOut, user } = useAuth();
 
   const menuItems = [
-    { id: 'orders', label: 'Órdenes', icon: ClipboardList },
-    { id: 'owners', label: 'Propietarios', icon: Users },
-    { id: 'metrics', label: 'Métricas', icon: BarChart3 },
+    { id: 'portal', label: 'Portal del Propietario', icon: Home },
+    { id: 'tickets', label: 'Tickets', icon: Ticket },
+    { id: 'owners', label: 'Gestión de Propietarios', icon: Users },
+    { id: 'scheduling', label: 'Sistema de Agendamiento', icon: Calendar },
+    { id: 'requests', label: 'Recepción de Solicitudes', icon: FileText },
+    { id: 'tracking', label: 'Seguimiento de Trabajos', icon: Wrench },
+    { id: 'dashboard', label: 'Dashboard y Reportes', icon: BarChart3 },
+    { id: 'notifications', label: 'Notificaciones', icon: Bell },
+    { id: 'admin', label: 'Administración', icon: Settings },
   ];
 
   return (
@@ -45,7 +51,15 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
 
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
-          {menuItems.map((item) => {
+          {menuItems
+            .filter((item) => {
+              // Filtrar según rol
+              if (item.id === 'admin' || item.id === 'owners' || item.id === 'requests' || item.id === 'tracking' || item.id === 'dashboard' || item.id === 'notifications') {
+                return user?.role === 'admin';
+              }
+              return true;
+            })
+            .map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
             return (
@@ -79,7 +93,7 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-800 truncate">{user?.email}</p>
-            <p className="text-xs text-gray-500 truncate">Administrador</p>
+            <p className="text-xs text-gray-500 truncate">{user?.role === 'admin' ? 'Administrador' : 'Propietario'}</p>
           </div>
         </div>
         <button
