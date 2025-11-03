@@ -17,23 +17,13 @@ interface Request {
 
 export default function RequestsPanel() {
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    ownerName: '',
-    phone: '',
-    tower: '',
-    municipalNumber: '',
-    receptionMethod: 'Manual',
-    observation: '',
-    area: '',
-  });
-
-  const mockRequests: Request[] = [
+  const [requests, setRequests] = useState<Request[]>([
     {
       id: '1',
       orderNumber: 'ORD-2024-001',
       ownerName: 'Juan Pérez',
       phone: '+56912345678',
-      tower: 'Torre A',
+      tower: 'Torre 1',
       municipalNumber: '101',
       requestDate: '2024-10-01',
       receptionMethod: 'Portal del Propietario',
@@ -46,7 +36,7 @@ export default function RequestsPanel() {
       orderNumber: 'ORD-2024-002',
       ownerName: 'María González',
       phone: '+56987654321',
-      tower: 'Torre B',
+      tower: 'Torre 2',
       municipalNumber: '205',
       requestDate: '2024-10-05',
       receptionMethod: 'Manual',
@@ -59,7 +49,7 @@ export default function RequestsPanel() {
       orderNumber: 'ORD-2024-003',
       ownerName: 'Carlos Rodríguez',
       phone: '+56923456789',
-      tower: 'Torre C',
+      tower: 'Torre 3',
       municipalNumber: '310',
       requestDate: '2024-10-08',
       receptionMethod: 'Portal del Propietario',
@@ -67,13 +57,67 @@ export default function RequestsPanel() {
       area: 'Gasfitería',
       status: 'Pendiente de Visita',
     },
-  ];
+  ]);
+
+  const [formData, setFormData] = useState({
+    ownerName: '',
+    phone: '',
+    tower: '',
+    municipalNumber: '',
+    receptionMethod: 'Manual',
+    observation: '',
+    area: '',
+  });
+
+  const generateOrderNumber = (): string => {
+    const year = new Date().getFullYear();
+    const lastOrder = requests
+      .filter((r) => r.orderNumber.startsWith(`ORD-${year}-`))
+      .sort((a, b) => {
+        const numA = parseInt(a.orderNumber.split('-')[2] || '0');
+        const numB = parseInt(b.orderNumber.split('-')[2] || '0');
+        return numB - numA;
+      })[0];
+
+    if (lastOrder) {
+      const lastNum = parseInt(lastOrder.orderNumber.split('-')[2] || '0');
+      const newNum = String(lastNum + 1).padStart(3, '0');
+      return `ORD-${year}-${newNum}`;
+    }
+    return `ORD-${year}-001`;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Nueva solicitud:', formData);
+    
+    const newRequest: Request = {
+      id: Date.now().toString(),
+      orderNumber: generateOrderNumber(),
+      ownerName: formData.ownerName,
+      phone: formData.phone,
+      tower: formData.tower,
+      municipalNumber: formData.municipalNumber,
+      requestDate: new Date().toISOString().split('T')[0],
+      receptionMethod: formData.receptionMethod,
+      observation: formData.observation,
+      area: formData.area,
+      status: 'Pendiente de Visita',
+    };
+
+    setRequests([newRequest, ...requests]);
+    
+    // Limpiar formulario
+    setFormData({
+      ownerName: '',
+      phone: '',
+      tower: '',
+      municipalNumber: '',
+      receptionMethod: 'Manual',
+      observation: '',
+      area: '',
+    });
+    
     setShowModal(false);
-    // Aquí se agregaría la lógica para guardar la solicitud
   };
 
   return (
@@ -84,7 +128,7 @@ export default function RequestsPanel() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Solicitudes</p>
-              <p className="text-3xl font-bold text-gray-800">{mockRequests.length}</p>
+              <p className="text-3xl font-bold text-gray-800">{requests.length}</p>
             </div>
             <FileText className="w-10 h-10 text-[#2B5F7F] opacity-20" />
           </div>
@@ -95,7 +139,7 @@ export default function RequestsPanel() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Pendientes</p>
               <p className="text-3xl font-bold text-yellow-600">
-                {mockRequests.filter((r) => r.status === 'Pendiente de Visita').length}
+                {requests.filter((r) => r.status === 'Pendiente de Visita').length}
               </p>
             </div>
             <FileText className="w-10 h-10 text-yellow-500 opacity-20" />
@@ -107,7 +151,7 @@ export default function RequestsPanel() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Desde Portal</p>
               <p className="text-3xl font-bold text-blue-600">
-                {mockRequests.filter((r) => r.receptionMethod === 'Portal del Propietario').length}
+                {requests.filter((r) => r.receptionMethod === 'Portal del Propietario').length}
               </p>
             </div>
             <FileText className="w-10 h-10 text-blue-500 opacity-20" />
@@ -119,7 +163,7 @@ export default function RequestsPanel() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Manual</p>
               <p className="text-3xl font-bold text-green-600">
-                {mockRequests.filter((r) => r.receptionMethod === 'Manual').length}
+                {requests.filter((r) => r.receptionMethod === 'Manual').length}
               </p>
             </div>
             <FileText className="w-10 h-10 text-green-500 opacity-20" />
@@ -148,14 +192,14 @@ export default function RequestsPanel() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propietario</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Teléfono</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Torre</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Municipal</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Departamento</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Fecha</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Método</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {mockRequests.map((request) => (
+              {requests.map((request) => (
                 <tr key={request.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{request.orderNumber}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{request.ownerName}</td>
@@ -228,7 +272,7 @@ export default function RequestsPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">N° Municipal</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">N° Departamento</label>
                   <input
                     type="text"
                     value={formData.municipalNumber}

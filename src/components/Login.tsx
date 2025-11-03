@@ -33,7 +33,7 @@ export default function Login() {
               <Building2 className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">Constructora FJ</h1>
-            <p className="text-gray-600">Alto San Miguel I</p>
+            <p className="text-gray-600">Alto San Miguel II</p>
             <p className="text-sm text-gray-500 mt-2">Sistema de Gestión Post-Venta</p>
           </div>
 

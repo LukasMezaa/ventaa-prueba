@@ -55,7 +55,7 @@ function Dashboard() {
           onMenuClick={() => setSidebarOpen(true)}
         />
         <main className="pt-16 px-3 sm:px-4 md:px-6 pb-8 transition-all duration-300">
-          {activeSection === 'portal' && <PortalPanel />}
+          {activeSection === 'portal' && <PortalPanel onNavigate={setActiveSection} />}
           {activeSection === 'tickets' && <TicketsPanel />}
           {activeSection === 'owners' && <OwnersPanel searchQuery={searchQuery} />}
           {activeSection === 'scheduling' && <SchedulingPanel />}

@@ -1,9 +1,14 @@
 import { Home, FileText, Calendar, Bell, User } from 'lucide-react';
 
-export default function PortalPanel() {
+interface PortalPanelProps {
+  onNavigate: (section: string) => void;
+}
+
+export default function PortalPanel({ onNavigate }: PortalPanelProps) {
   const menuOptions = [
     {
       id: 'requests',
+      section: 'requests',
       title: 'Mis Solicitudes',
       description: 'Ver y crear solicitudes de servicio',
       icon: FileText,
@@ -11,6 +16,7 @@ export default function PortalPanel() {
     },
     {
       id: 'appointments',
+      section: 'scheduling',
       title: 'Agendar Visita',
       description: 'Programar una visita técnica',
       icon: Calendar,
@@ -18,6 +24,7 @@ export default function PortalPanel() {
     },
     {
       id: 'notifications',
+      section: 'notifications',
       title: 'Notificaciones',
       description: 'Ver alertas y avisos',
       icon: Bell,
@@ -25,6 +32,7 @@ export default function PortalPanel() {
     },
     {
       id: 'profile',
+      section: 'portal',
       title: 'Mi Perfil',
       description: 'Datos personales y propiedades',
       icon: User,
@@ -81,6 +89,7 @@ export default function PortalPanel() {
             return (
               <div
                 key={option.id}
+                onClick={() => onNavigate(option.section)}
                 className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all cursor-pointer group"
               >
                 <div className="flex items-start gap-4">
