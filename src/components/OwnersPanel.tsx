@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Users, Home, Shield, ShieldCheck, X, Mail, Phone } from 'lucide-react';
 import { PropertyOwner, mockPropertyOwners } from '../lib/mockData';
 
@@ -12,6 +12,7 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
   const [loading, setLoading] = useState(true);
   const [selectedOwner, setSelectedOwner] = useState<PropertyOwner | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     fetchOwners();
@@ -31,7 +32,8 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
       const matchesSearch =
         searchQuery === '' ||
         owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        owner.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (owner.rut || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (owner.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         owner.phone.includes(searchQuery) ||
         owner.tower.toLowerCase().includes(searchQuery.toLowerCase()) ||
         owner.municipal_number.includes(searchQuery);
@@ -94,6 +96,36 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
         <div className="p-3 sm:p-4 border-b border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <h3 className="font-semibold text-gray-800 text-sm sm:text-base">Propietarios Registrados</h3>
           <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  try {
+                    const text = String(reader.result || '');
+                    const parsed = parseOwnersCSV(text);
+                    setOwners(parsed);
+                  } catch (err) {
+                    console.error('Error al importar CSV', err);
+                    alert('No se pudo importar el CSV. Verifica el formato.');
+                  }
+                };
+                reader.readAsText(file, 'utf-8');
+                // limpiar para permitir re-importar el mismo archivo
+                e.currentTarget.value = '';
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 sm:px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm"
+            >
+              Importar CSV
+            </button>
             <button
               onClick={() => setViewMode('cards')}
               className={`px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm ${
@@ -141,7 +173,7 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Home className="w-4 h-4" />
-                    <span>Torre {owner.tower} - {owner.municipal_number}</span>
+                    <span>{owner.tower} - {owner.municipal_number}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Phone className="w-4 h-4" />
@@ -149,7 +181,7 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Mail className="w-4 h-4" />
-                    <span className="truncate">{owner.email}</span>
+                    <span className="truncate">{owner.email || 'no adjunto correo'}</span>
                   </div>
                 </div>
 
@@ -170,12 +202,14 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
             <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Nombre</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden sm:table-cell">Teléfono</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden lg:table-cell">Condominio</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Torre</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden md:table-cell">N° Municipal</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden xl:table-cell">Email</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cliente</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">RUT</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Telefónico 01</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Telefónico 02</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Correo</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Condominio</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Torre</th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Departamento</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden lg:table-cell">Garantía</th>
                   <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Estado</th>
                 </tr>
@@ -187,12 +221,14 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                     onClick={() => setSelectedOwner(owner)}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                   >
-                    <td className="px-3 sm:px-4 py-3 text-sm font-medium text-gray-900 truncate max-w-[150px]">{owner.name}</td>
-                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden sm:table-cell">{owner.phone}</td>
-                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden lg:table-cell truncate max-w-[200px]">{owner.condominium}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm font-medium text-gray-900 truncate max-w-[200px]">{owner.name}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{owner.rut}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{owner.phone}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{owner.alternative_phone || ''}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 truncate max-w-[220px]">{owner.email || 'no adjunto correo'}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 truncate max-w-[200px]">{owner.condominium}</td>
                     <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{owner.tower}</td>
-                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden md:table-cell">{owner.municipal_number}</td>
-                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden xl:table-cell truncate max-w-[180px]">{owner.email}</td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{owner.municipal_number}</td>
                     <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden lg:table-cell">{owner.warranty_years} años</td>
                     <td className="px-3 sm:px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${warrantyColors[owner.warranty_status]}`}>
@@ -237,7 +273,11 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                   <p className="text-gray-900 font-semibold">{selectedOwner.tower}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">N° Municipal</label>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">RUT</label>
+                  <p className="text-gray-900 font-semibold">{selectedOwner.rut}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Número de Departamento</label>
                   <p className="text-gray-900 font-semibold">{selectedOwner.municipal_number}</p>
                 </div>
               </div>
@@ -265,7 +305,7 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                     <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-gray-600">Correo Electrónico</label>
-                      <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.email}</p>
+                      <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.email || 'no adjunto correo'}</p>
                     </div>
                   </div>
                 </div>
@@ -311,4 +351,155 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
       )}
     </div>
   );
+}
+
+// CSV parser muy simple para columnas del Excel exportado
+// Encabezados esperados (insensibles a mayúsculas):
+// Cliente, RUT, N° TELEFONO 1, N° TELEFONO 2, CORREO, CONDOMINIO, N° TORRE, N° DEPARTAMENTO
+function parseOwnersCSV(csvText: string): PropertyOwner[] {
+  const lines = csvText.replace(/\r\n?/g, '\n').split('\n').filter(l => l.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  const [rawHeader, ...dataLines] = lines;
+  const header = splitCSVLine(rawHeader).map(h => h.trim().toLowerCase());
+
+  const idx = (name: string) => header.findIndex(h => h.includes(name));
+  const iName = idx('cliente');
+  // Buscar múltiples variantes para teléfonos (ej. "N° TELEFONICO 01/02")
+  const iPhone1 = [
+    idx('telefonico 01'),
+    idx('telefono 01'),
+    idx('telefono 1'),
+    idx('telefono')
+  ].find(i => i !== -1) ?? -1;
+  const iPhone2 = [
+    idx('telefonico 02'),
+    idx('telefono 02'),
+    idx('telefono 2')
+  ].find(i => i !== -1) ?? -1;
+  const iEmail = idx('correo');
+  const iTower = idx('torre');
+  const iRut = idx('rut');
+  const iCondo = idx('condominio') !== -1 ? idx('condominio') : idx('condomin');
+  // buscar por múltiples variantes para mayor robustez
+  const iDepto = [
+    idx('departamento'),
+    idx('depart'),
+    idx('depto')
+  ].find(i => i !== -1) ?? -1;
+
+  let counter = 1;
+
+  const owners: PropertyOwner[] = dataLines.map((line) => {
+    const cols = splitCSVLine(line);
+    const name = capitalizeFirstOnly((cols[iName] || '').trim());
+    const phone = normalizePhone(cols[iPhone1]);
+    const altPhone = normalizePhone(cols[iPhone2]) || null;
+    let email = (cols[iEmail] || '').trim().toLowerCase() || '';
+    if (/condomin/i.test(email)) email = '';
+    const rut = (cols[iRut] || '').trim().toLowerCase();
+    const condoFromCsv = (cols[iCondo] || '').trim();
+    const towerRaw = (cols[iTower] || '').trim();
+    // Formatear torre según requerimientos:
+    // - Si contiene "discapacitado": "Torre(n)/discapacitado"
+    // - En caso contrario: "TORRE n" (mantener formato estándar en mayúsculas)
+    const hasDiscap = /discapacitado/i.test(towerRaw);
+    // Tomar solo el primer dígito para limitar a 5 torres (1-5)
+    // Si el primer dígito no es 1-5, buscar explícitamente uno entre 1 y 5
+    const firstDigitMatch = towerRaw.match(/\d/);
+    let towerNumber = firstDigitMatch ? firstDigitMatch[0] : '';
+    if (towerNumber && !/[1-5]/.test(towerNumber)) {
+      const oneToFive = towerRaw.match(/[1-5]/);
+      towerNumber = oneToFive ? oneToFive[0] : '';
+    }
+    const tower = hasDiscap && towerNumber
+      ? `torre(${towerNumber})/discapacitado`
+      : (towerNumber ? `torre ${towerNumber}` : ((towerRaw || '').toLowerCase()))
+    // Tomar N° Departamento como N° Municipal (normalizado)
+    let deptoRaw = '';
+    if (iDepto !== -1) {
+      deptoRaw = (cols[iDepto] || '').trim();
+    }
+    // Fallback: si viene vacío, tomar la última columna con valor
+    if (!deptoRaw) {
+      for (let j = cols.length - 1; j >= 0; j--) {
+        if ((cols[j] || '').trim()) { deptoRaw = (cols[j] || '').trim(); break; }
+      }
+    }
+    const deptoDigits = deptoRaw.replace(/[^0-9]/g, '');
+    const depto = deptoDigits || deptoRaw; // preferir solo números; si queda vacío, usar crudo
+
+    const nowIso = new Date().toISOString();
+    const owner: PropertyOwner = {
+      id: `asm2-${counter++}`,
+      name,
+      rut,
+      phone,
+      alternative_phone: altPhone,
+      condominium: formatCondominiumToRoman(condoFromCsv || 'Alto San Miguel 2'),
+      tower,
+      municipal_number: depto,
+      email, // si viene vacío, la UI mostrará "no adjunto correo"
+      reception_date: nowIso,
+      status: 'Activo',
+      update_date: nowIso,
+      warranty_years: 2,
+      warranty_status: 'Activa',
+      created_at: nowIso,
+    };
+    return owner;
+  }).filter(o => o.name);
+
+  return owners;
+}
+
+function splitCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      // manejar comillas escapadas
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function normalizePhone(value?: string): string {
+  if (!value) return '';
+  const digits = String(value).replace(/[^0-9]/g, '');
+  if (digits.startsWith('56')) return `+${digits}`;
+  if (digits.startsWith('9') && digits.length === 9) return `+569${digits}`;
+  if (digits.length > 0 && !digits.startsWith('+')) return `+${digits}`;
+  return digits || '';
+}
+
+// Convierte todo a minúsculas y solo la primera letra en mayúscula
+function capitalizeFirstOnly(text: string): string {
+  const lower = text.toLowerCase();
+  if (!lower) return '';
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+// Convierte números 1-10 en romanos y baja a minúsculas el resto del texto
+function formatCondominiumToRoman(text: string): string {
+  const lower = (text || '').toLowerCase();
+  const romanMap: Record<string, string> = {
+    '10': 'X', '9': 'IX', '8': 'VIII', '7': 'VII', '6': 'VI', '5': 'V', '4': 'IV', '3': 'III', '2': 'II', '1': 'I'
+  };
+  // Reemplazar cualquier número entero (1-10) por su romano
+  return lower.replace(/\b(10|[1-9])\b/g, (m) => romanMap[m] || m);
 }

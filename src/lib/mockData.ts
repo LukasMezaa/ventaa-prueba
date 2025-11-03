@@ -18,6 +18,7 @@ export type Order = {
 export type PropertyOwner = {
   id: string;
   name: string;
+  rut: string;
   phone: string;
   alternative_phone: string | null;
   condominium: string;
@@ -258,6 +259,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '1',
     name: 'Juan Pérez',
+    rut: '',
     phone: '+56912345678',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -274,6 +276,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '2',
     name: 'María González',
+    rut: '',
     phone: '+56987654321',
     alternative_phone: '+56912345678',
     condominium: 'Alto San Miguel I',
@@ -290,6 +293,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '3',
     name: 'Carlos Rodríguez',
+    rut: '',
     phone: '+56923456789',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -306,6 +310,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '4',
     name: 'Ana Martínez',
+    rut: '',
     phone: '+56934567890',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -322,6 +327,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '5',
     name: 'Luis Herrera',
+    rut: '',
     phone: '+56945678901',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -338,6 +344,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '6',
     name: 'Patricia Silva',
+    rut: '',
     phone: '+56956789012',
     alternative_phone: '+56909876543',
     condominium: 'Alto San Miguel I',
@@ -354,6 +361,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '7',
     name: 'Roberto Fernández',
+    rut: '',
     phone: '+56967890123',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -370,6 +378,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '8',
     name: 'Carmen López',
+    rut: '',
     phone: '+56978901234',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -386,6 +395,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '9',
     name: 'Fernando Díaz',
+    rut: '',
     phone: '+56989012345',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -402,6 +412,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '10',
     name: 'Silvia Morales',
+    rut: '',
     phone: '+56990123456',
     alternative_phone: '+56965432109',
     condominium: 'Alto San Miguel I',
@@ -418,6 +429,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '11',
     name: 'Diego Ramírez',
+    rut: '',
     phone: '+56901234567',
     alternative_phone: null,
     condominium: 'Alto San Miguel I',
@@ -434,6 +446,7 @@ export const mockPropertyOwners: PropertyOwner[] = [
   {
     id: '12',
     name: 'Gloria Vargas',
+    rut: '',
     phone: '+56912348765',
     alternative_phone: '+56987612345',
     condominium: 'Alto San Miguel I',

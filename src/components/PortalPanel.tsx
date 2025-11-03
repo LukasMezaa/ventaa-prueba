@@ -42,7 +42,7 @@ export default function PortalPanel() {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold mb-1">Portal del Propietario</h1>
-            <p className="text-white/90">Bienvenido a Alto San Miguel I</p>
+            <p className="text-white/90">Bienvenido a Alto San Miguel II</p>
           </div>
         </div>
       </div>
