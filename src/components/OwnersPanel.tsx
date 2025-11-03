@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, Home, Shield, ShieldCheck, X, Mail, Phone, Filter } from 'lucide-react';
+import { Users, Home, Shield, ShieldCheck, X, Mail, Phone, Filter, Plus } from 'lucide-react';
 import { PropertyOwner, mockPropertyOwners } from '../lib/mockData';
 
 const warrantyColors: Record<string, string> = {
@@ -14,6 +14,17 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedTower, setSelectedTower] = useState<string>('');
   const [selectedCondominium, setSelectedCondominium] = useState<string>('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    rut: '',
+    phone: '',
+    alternative_phone: '',
+    condominium: 'condominio I',
+    tower: '',
+    municipal_number: '',
+    email: '',
+  });
 
   useEffect(() => {
     fetchOwners();
@@ -26,6 +37,54 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
     
     setOwners(mockPropertyOwners);
     setLoading(false);
+  };
+
+  const handleCreateOwner = () => {
+    const nowIso = new Date().toISOString();
+    const towerValue = formData.tower.trim();
+    
+    // Formatear torre según el formato esperado
+    let formattedTower = towerValue.toLowerCase();
+    if (formattedTower.match(/^torre\s*\(?\d+\)?/)) {
+      // Si ya tiene el formato correcto, mantenerlo
+    } else if (formattedTower.match(/^\d+$/)) {
+      formattedTower = `torre ${formattedTower}`;
+    }
+
+    const newOwner: PropertyOwner = {
+      id: `asm2-${Date.now()}`,
+      name: formData.name.trim(),
+      rut: formData.rut.trim().toLowerCase(),
+      phone: formData.phone.trim(),
+      alternative_phone: formData.alternative_phone.trim() || null,
+      condominium: formData.condominium.trim(),
+      tower: formattedTower,
+      municipal_number: formData.municipal_number.trim(),
+      email: formData.email.trim().toLowerCase() || '',
+      reception_date: nowIso,
+      status: 'Activo',
+      update_date: nowIso,
+      warranty_years: 2,
+      warranty_status: 'Activa',
+      created_at: nowIso,
+    };
+
+    // Agregar al principio del array
+    setOwners([newOwner, ...owners]);
+    
+    // Limpiar formulario
+    setFormData({
+      name: '',
+      rut: '',
+      phone: '',
+      alternative_phone: '',
+      condominium: 'condominio I',
+      tower: '',
+      municipal_number: '',
+      email: '',
+    });
+    
+    setShowCreateModal(false);
   };
 
   const filteredOwners = useMemo(() => {
@@ -115,6 +174,18 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
         <div className="p-3 sm:p-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3">
             <h3 className="font-semibold text-gray-800 text-sm sm:text-base">Propietarios Registrados</h3>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Crear Propietario</span>
+            </button>
+          </div>
+
+          {/* Botones de vista y filtros */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Botones de vista - Izquierda */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode('cards')}
@@ -140,57 +211,55 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                 Tabla
               </button>
             </div>
-          </div>
 
-          {/* Filtros */}
-          <div className="flex flex-wrap items-center gap-3">
+            {/* Filtros - Continuación fluida */}
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-500" />
               <label className="text-sm text-gray-600 whitespace-nowrap">Filtros:</label>
-            </div>
-            
-            {/* Filtro de Torre */}
-            <div className="relative">
-              <select
-                value={selectedTower}
-                onChange={(e) => setSelectedTower(e.target.value)}
-                className="appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm bg-white cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <option value="">Todas las Torres</option>
-                <option value="1">Torre 1 (incluye discapacitado)</option>
-                <option value="2">Torre 2</option>
-                <option value="3">Torre 3</option>
-                <option value="4">Torre 4</option>
-                <option value="5">Torre 5</option>
-              </select>
-            </div>
+              
+              {/* Filtro de Torre */}
+              <div className="relative">
+                <select
+                  value={selectedTower}
+                  onChange={(e) => setSelectedTower(e.target.value)}
+                  className="appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <option value="">Todas las Torres</option>
+                  <option value="1">Torre 1 (incluye discapacitado)</option>
+                  <option value="2">Torre 2</option>
+                  <option value="3">Torre 3</option>
+                  <option value="4">Torre 4</option>
+                  <option value="5">Torre 5</option>
+                </select>
+              </div>
 
-            {/* Filtro de Condominio */}
-            <div className="relative">
-              <select
-                value={selectedCondominium}
-                onChange={(e) => setSelectedCondominium(e.target.value)}
-                className="appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm bg-white cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <option value="">Todos los Condominios</option>
-                <option value="condominio I">Condominio I</option>
-                <option value="condominio II">Condominio II</option>
-              </select>
-            </div>
+              {/* Filtro de Condominio */}
+              <div className="relative">
+                <select
+                  value={selectedCondominium}
+                  onChange={(e) => setSelectedCondominium(e.target.value)}
+                  className="appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <option value="">Todos los Condominios</option>
+                  <option value="condominio I">Condominio I</option>
+                  <option value="condominio II">Condominio II</option>
+                </select>
+              </div>
 
-            {/* Botón para limpiar filtros */}
-            {(selectedTower !== '' || selectedCondominium !== '') && (
-              <button
-                onClick={() => {
-                  setSelectedTower('');
-                  setSelectedCondominium('');
-                }}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
-              >
-                <X className="w-4 h-4" />
-                <span>Limpiar</span>
-              </button>
-            )}
+              {/* Botón para limpiar filtros */}
+              {(selectedTower !== '' || selectedCondominium !== '') && (
+                <button
+                  onClick={() => {
+                    setSelectedTower('');
+                    setSelectedCondominium('');
+                  }}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Limpiar</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -386,6 +455,143 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
                 <p className="text-gray-900 font-semibold">{selectedOwner.status}</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Crear Propietario */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800">Crear Nuevo Propietario</h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateOwner();
+              }}
+              className="p-4 sm:p-6 space-y-4"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
+                  <input
+                    type="text"
+                    value={formData.rut}
+                    onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="12.345.678-9"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Principal *</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="+56912345678"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Alternativo</label>
+                  <input
+                    type="tel"
+                    value={formData.alternative_phone}
+                    onChange={(e) => setFormData({ ...formData, alternative_phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="+56987654321"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="ejemplo@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Condominio *</label>
+                  <select
+                    value={formData.condominium}
+                    onChange={(e) => setFormData({ ...formData, condominium: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none bg-white"
+                    required
+                  >
+                    <option value="condominio I">Condominio I</option>
+                    <option value="condominio II">Condominio II</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Torre *</label>
+                  <input
+                    type="text"
+                    value={formData.tower}
+                    onChange={(e) => setFormData({ ...formData, tower: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="1, 2, 3, 4, 5 o torre(1)/discapacitado"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Número de Departamento *</label>
+                  <input
+                    type="text"
+                    value={formData.municipal_number}
+                    onChange={(e) => setFormData({ ...formData, municipal_number: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                    placeholder="101"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors font-medium"
+                >
+                  Crear Propietario
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

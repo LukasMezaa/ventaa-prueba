@@ -1,5 +1,6 @@
-import { Calendar, Clock, MapPin, User, Plus } from 'lucide-react';
+import { Calendar, Clock, MapPin, User } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Appointment {
   id: string;
@@ -12,16 +13,30 @@ interface Appointment {
 }
 
 export default function SchedulingPanel() {
+  const { user } = useAuth();
+  const isPropietario = user?.role === 'propietario';
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState('');
   
-  const mockAppointments: Appointment[] = [
+  const mockAppointments: Appointment[] = isPropietario
+    ? [
+        {
+          id: '1',
+          date: '2024-10-15',
+          time: '09:00',
+          owner: 'propietario',
+          property: 'Torre 1 - 101',
+          type: 'Primera Visita',
+          status: 'Pendiente',
+        },
+      ]
+    : [
     {
       id: '1',
       date: '2024-10-15',
       time: '09:00',
       owner: 'Juan Pérez',
-      property: 'Torre A - 101',
+      property: 'Torre 1 - 101',
       type: 'Primera Visita',
       status: 'Pendiente',
     },
@@ -30,7 +45,7 @@ export default function SchedulingPanel() {
       date: '2024-10-15',
       time: '11:00',
       owner: 'María González',
-      property: 'Torre B - 205',
+      property: 'Torre 2 - 205',
       type: 'Trabajo de Ejecución',
       status: 'Confirmada',
     },
@@ -39,7 +54,7 @@ export default function SchedulingPanel() {
       date: '2024-10-16',
       time: '10:00',
       owner: 'Carlos Rodríguez',
-      property: 'Torre C - 310',
+      property: 'Torre 3 - 310',
       type: 'Primera Visita',
       status: 'Pendiente',
     },
@@ -49,48 +64,50 @@ export default function SchedulingPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Estadísticas Rápidas */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Citas Hoy</p>
-              <p className="text-3xl font-bold text-gray-800">3</p>
+      {/* Estadísticas Rápidas - Solo para admin */}
+      {!isPropietario && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Citas Hoy</p>
+                <p className="text-3xl font-bold text-gray-800">3</p>
+              </div>
+              <Calendar className="w-10 h-10 text-blue-500 opacity-20" />
             </div>
-            <Calendar className="w-10 h-10 text-blue-500 opacity-20" />
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Pendientes</p>
-              <p className="text-3xl font-bold text-yellow-600">2</p>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Pendientes</p>
+                <p className="text-3xl font-bold text-yellow-600">2</p>
+              </div>
+              <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
             </div>
-            <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Confirmadas</p>
-              <p className="text-3xl font-bold text-green-600">1</p>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Confirmadas</p>
+                <p className="text-3xl font-bold text-green-600">1</p>
+              </div>
+              <Clock className="w-10 h-10 text-green-500 opacity-20" />
             </div>
-            <Clock className="w-10 h-10 text-green-500 opacity-20" />
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Esta Semana</p>
-              <p className="text-3xl font-bold text-gray-800">8</p>
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Esta Semana</p>
+                <p className="text-3xl font-bold text-gray-800">8</p>
+              </div>
+              <Calendar className="w-10 h-10 text-purple-500 opacity-20" />
             </div>
-            <Calendar className="w-10 h-10 text-purple-500 opacity-20" />
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendario y Formulario */}
@@ -99,10 +116,6 @@ export default function SchedulingPanel() {
           <div className="bg-white rounded-xl p-6 border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Calendario de Disponibilidad</h3>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors">
-                <Plus className="w-4 h-4" />
-                Nueva Cita
-              </button>
             </div>
 
             <div className="mb-4">
@@ -192,18 +205,27 @@ export default function SchedulingPanel() {
           <div className="bg-white rounded-xl p-6 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Próximos Eventos</h3>
             <div className="space-y-3">
-              <div className="border-l-4 border-yellow-500 pl-4">
-                <p className="text-sm font-medium text-gray-900">Hoy - 09:00</p>
-                <p className="text-xs text-gray-600">Primera Visita - Juan Pérez</p>
-              </div>
-              <div className="border-l-4 border-green-500 pl-4">
-                <p className="text-sm font-medium text-gray-900">Hoy - 11:00</p>
-                <p className="text-xs text-gray-600">Trabajo - María González</p>
-              </div>
-              <div className="border-l-4 border-blue-500 pl-4">
-                <p className="text-sm font-medium text-gray-900">Mañana - 10:00</p>
-                <p className="text-xs text-gray-600">Primera Visita - Carlos Rodríguez</p>
-              </div>
+              {isPropietario ? (
+                <div className="border-l-4 border-yellow-500 pl-4">
+                  <p className="text-sm font-medium text-gray-900">14-10-2024 - 09:00</p>
+                  <p className="text-xs text-gray-600">Primera Visita - propietario</p>
+                </div>
+              ) : (
+                <>
+                  <div className="border-l-4 border-yellow-500 pl-4">
+                    <p className="text-sm font-medium text-gray-900">Hoy - 09:00</p>
+                    <p className="text-xs text-gray-600">Primera Visita - Juan Pérez</p>
+                  </div>
+                  <div className="border-l-4 border-green-500 pl-4">
+                    <p className="text-sm font-medium text-gray-900">Hoy - 11:00</p>
+                    <p className="text-xs text-gray-600">Trabajo - María González</p>
+                  </div>
+                  <div className="border-l-4 border-blue-500 pl-4">
+                    <p className="text-sm font-medium text-gray-900">Mañana - 10:00</p>
+                    <p className="text-xs text-gray-600">Primera Visita - Carlos Rodríguez</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

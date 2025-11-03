@@ -1,4 +1,4 @@
-import { Home, FileText, Calendar, Bell, User } from 'lucide-react';
+import { Home, FileText, Calendar, Bell, User, Ticket } from 'lucide-react';
 
 interface PortalPanelProps {
   onNavigate: (section: string) => void;
@@ -7,11 +7,11 @@ interface PortalPanelProps {
 export default function PortalPanel({ onNavigate }: PortalPanelProps) {
   const menuOptions = [
     {
-      id: 'requests',
-      section: 'requests',
-      title: 'Mis Solicitudes',
-      description: 'Ver y crear solicitudes de servicio',
-      icon: FileText,
+      id: 'tickets',
+      section: 'tickets',
+      title: 'Mis Tickets',
+      description: 'Ver y crear tickets de servicio',
+      icon: Ticket,
       color: 'bg-blue-500',
     },
     {
