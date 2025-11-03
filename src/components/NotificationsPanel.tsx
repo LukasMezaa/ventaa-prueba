@@ -101,75 +101,51 @@ export default function NotificationsPanel() {
   const unreadCount = mockNotifications.filter((n) => !n.read).length;
 
   return (
-    <div className="space-y-6">
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Notificaciones</p>
-              <p className="text-3xl font-bold text-gray-800">{mockNotifications.length}</p>
-            </div>
-            <Bell className="w-10 h-10 text-[#2B5F7F] opacity-20" />
-          </div>
+    <div className="space-y-4">
+      {/* Estadísticas Compactas */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200">
+          <Bell className="w-4 h-4 text-gray-500" />
+          <span className="text-sm text-gray-600">Total:</span>
+          <span className="text-sm font-semibold text-gray-800">{mockNotifications.length}</span>
         </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">No Leídas</p>
-              <p className="text-3xl font-bold text-yellow-600">{unreadCount}</p>
-            </div>
-            <AlertCircle className="w-10 h-10 text-yellow-500 opacity-20" />
-          </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200">
+          <AlertCircle className="w-4 h-4 text-yellow-500" />
+          <span className="text-sm text-gray-600">No leídas:</span>
+          <span className="text-sm font-semibold text-yellow-600">{unreadCount}</span>
         </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Hoy</p>
-              <p className="text-3xl font-bold text-blue-600">
-                {mockNotifications.filter((n) => n.date.includes('2024-10-10')).length}
-              </p>
-            </div>
-            <Clock className="w-10 h-10 text-blue-500 opacity-20" />
-          </div>
-        </div>
+        <div className="flex-1"></div>
+        <button className="text-sm text-[#2B5F7F] hover:underline px-2">
+          Marcar todas como leídas
+        </button>
       </div>
 
       {/* Lista de Notificaciones */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Notificaciones</h3>
-          <button className="text-sm text-[#2B5F7F] hover:underline">
-            Marcar todas como leídas
-          </button>
-        </div>
-
-        <div className="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
+        <div className="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
           {mockNotifications.map((notification) => {
             const Icon = getIcon(notification.type);
             return (
               <div
                 key={notification.id}
                 onClick={() => setSelectedNotification(notification)}
-                className={`p-6 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  !notification.read ? 'bg-blue-50/30' : ''
+                className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                  !notification.read ? 'bg-blue-50/20 border-l-4 border-blue-500' : 'border-l-4 border-transparent'
                 }`}
               >
-                <div className="flex gap-4">
-                  <div className={`w-12 h-12 ${getColor(notification.type)} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                    <Icon className="w-6 h-6" />
+                <div className="flex gap-3 items-start">
+                  <div className={`w-10 h-10 ${getColor(notification.type)} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-semibold text-gray-900">{notification.title}</h4>
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
                       {!notification.read && (
                         <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1"></div>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
-                    <p className="text-xs text-gray-500">{notification.date}</p>
+                    <p className="text-sm text-gray-600 mb-1 line-clamp-2">{notification.message}</p>
+                    <p className="text-xs text-gray-400">{notification.date}</p>
                   </div>
                 </div>
               </div>
@@ -178,38 +154,26 @@ export default function NotificationsPanel() {
         </div>
       </div>
 
-      {/* Centro de Configuración */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuración de Alertas</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-            <div>
-              <p className="font-medium text-gray-800">Nuevas Solicitudes</p>
-              <p className="text-sm text-gray-600">Recibir notificaciones de solicitudes nuevas</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 text-[#2B5F7F]" />
-          </div>
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-            <div>
-              <p className="font-medium text-gray-800">Recordatorios de Visitas</p>
-              <p className="text-sm text-gray-600">Alertas 24 horas antes de visitas</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 text-[#2B5F7F]" />
-          </div>
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-            <div>
-              <p className="font-medium text-gray-800">Cambios de Estado</p>
-              <p className="text-sm text-gray-600">Notificar cuando cambie el estado de una orden</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 text-[#2B5F7F]" />
-          </div>
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-            <div>
-              <p className="font-medium text-gray-800">Mensajes de Chat</p>
-              <p className="text-sm text-gray-600">Notificar nuevos mensajes</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 text-[#2B5F7F]" />
-          </div>
+      {/* Centro de Configuración - Compacto */}
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">Configuración de Alertas</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label className="flex items-center gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2B5F7F]" />
+            <span className="text-sm text-gray-700">Nuevas Solicitudes</span>
+          </label>
+          <label className="flex items-center gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2B5F7F]" />
+            <span className="text-sm text-gray-700">Recordatorios de Visitas</span>
+          </label>
+          <label className="flex items-center gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2B5F7F]" />
+            <span className="text-sm text-gray-700">Cambios de Estado</span>
+          </label>
+          <label className="flex items-center gap-2 p-2 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2B5F7F]" />
+            <span className="text-sm text-gray-700">Mensajes de Chat</span>
+          </label>
         </div>
       </div>
 

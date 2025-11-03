@@ -12,13 +12,13 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
   const { signOut, user } = useAuth();
 
   const menuItems = [
-    { id: 'portal', label: 'Portal del Propietario', icon: Home },
+    { id: 'portal', label: 'Inicio', icon: Home },
     { id: 'tickets', label: 'Tickets', icon: Ticket },
-    { id: 'owners', label: 'Gestión de Propietarios', icon: Users },
-    { id: 'scheduling', label: 'Sistema de Agendamiento', icon: Calendar },
-    { id: 'requests', label: 'Recepción de Solicitudes', icon: FileText },
+    { id: 'owners', label: 'Propietarios', icon: Users },
+    { id: 'scheduling', label: 'Agendamiento', icon: Calendar },
+    { id: 'requests', label: 'Solicitudes', icon: FileText },
     { id: 'tracking', label: 'Seguimiento de Trabajos', icon: Wrench },
-    { id: 'dashboard', label: 'Dashboard y Reportes', icon: BarChart3 },
+    { id: 'dashboard', label: 'Dashboards', icon: BarChart3 },
     { id: 'notifications', label: 'Notificaciones', icon: Bell },
     { id: 'admin', label: 'Administración', icon: Settings },
   ];

@@ -1,10 +1,14 @@
 import { Home, FileText, Calendar, Bell, User, Ticket } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PortalPanelProps {
   onNavigate: (section: string) => void;
 }
 
 export default function PortalPanel({ onNavigate }: PortalPanelProps) {
+  const { user } = useAuth();
+  const isPropietario = user?.role === 'propietario';
+
   const menuOptions = [
     {
       id: 'tickets',
@@ -29,6 +33,7 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       description: 'Ver alertas y avisos',
       icon: Bell,
       color: 'bg-yellow-500',
+      hideForPropietario: true,
     },
     {
       id: 'profile',
@@ -37,8 +42,9 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       description: 'Datos personales y propiedades',
       icon: User,
       color: 'bg-purple-500',
+      hideForPropietario: true,
     },
-  ];
+  ].filter(option => !(isPropietario && option.hideForPropietario));
 
   return (
     <div className="space-y-6">
@@ -108,7 +114,7 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       </div>
 
       {/* Resumen Rápido */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${isPropietario ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -129,15 +135,17 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Notificaciones</p>
-              <p className="text-3xl font-bold text-gray-800">3</p>
+        {!isPropietario && (
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Notificaciones</p>
+                <p className="text-3xl font-bold text-gray-800">3</p>
+              </div>
+              <Bell className="w-10 h-10 text-yellow-500 opacity-20" />
             </div>
-            <Bell className="w-10 h-10 text-yellow-500 opacity-20" />
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
