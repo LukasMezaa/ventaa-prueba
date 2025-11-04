@@ -1,5 +1,5 @@
-import { FileText, Plus, Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, Plus, Search, X, ChevronDown, CheckCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 interface Request {
   id: string;
@@ -17,6 +17,9 @@ interface Request {
 
 export default function RequestsPanel() {
   const [showModal, setShowModal] = useState(false);
+  const [openStatusMenu, setOpenStatusMenu] = useState<string | null>(null);
+  const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  
   const [requests, setRequests] = useState<Request[]>([
     {
       id: '1',
@@ -120,10 +123,40 @@ export default function RequestsPanel() {
     setShowModal(false);
   };
 
+  const handleStatusChange = (requestId: string, newStatus: string) => {
+    setRequests(requests.map(r => 
+      r.id === requestId ? { ...r, status: newStatus } : r
+    ));
+    setOpenStatusMenu(null);
+  };
+
+  // Cerrar menús al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openStatusMenu && menuRefs.current[openStatusMenu]) {
+        if (!menuRefs.current[openStatusMenu]?.contains(event.target as Node)) {
+          setOpenStatusMenu(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openStatusMenu]);
+
+  const getStatusStyles = (status: string) => {
+    if (status === 'Visitado') {
+      return 'bg-green-100 text-green-800 border-green-200';
+    }
+    return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  };
+
   return (
     <div className="space-y-6">
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -143,6 +176,18 @@ export default function RequestsPanel() {
               </p>
             </div>
             <FileText className="w-10 h-10 text-yellow-500 opacity-20" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Visitados</p>
+              <p className="text-3xl font-bold text-green-600">
+                {requests.filter((r) => r.status === 'Visitado').length}
+              </p>
+            </div>
+            <FileText className="w-10 h-10 text-green-500 opacity-20" />
           </div>
         </div>
 
@@ -211,9 +256,52 @@ export default function RequestsPanel() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">{request.receptionMethod}</td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                      {request.status}
-                    </span>
+                    <div className="relative" ref={(el) => { menuRefs.current[request.id] = el; }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenStatusMenu(openStatusMenu === request.id ? null : request.id);
+                        }}
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors hover:opacity-80 ${getStatusStyles(request.status)}`}
+                      >
+                        {request.status === 'Visitado' && <CheckCircle className="w-3 h-3" />}
+                        {request.status}
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                      
+                      {openStatusMenu === request.id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(request.id, 'Pendiente de Visita');
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                              request.status === 'Pendiente de Visita' ? 'bg-yellow-50 font-medium' : ''
+                            }`}
+                          >
+                            {request.status === 'Pendiente de Visita' && <CheckCircle className="w-4 h-4 text-yellow-600" />}
+                            <span className={request.status === 'Pendiente de Visita' ? 'text-yellow-800' : 'text-gray-700'}>
+                              Pendiente de Visita
+                            </span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(request.id, 'Visitado');
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                              request.status === 'Visitado' ? 'bg-green-50 font-medium' : ''
+                            }`}
+                          >
+                            {request.status === 'Visitado' && <CheckCircle className="w-4 h-4 text-green-600" />}
+                            <span className={request.status === 'Visitado' ? 'text-green-800' : 'text-gray-700'}>
+                              Visitado
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
