@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, Home, Shield, ShieldCheck, X, Mail, Phone, Filter, Plus } from 'lucide-react';
+import { Users, Home, Shield, ShieldCheck, X, Mail, Phone, Filter, Plus, Edit2, Save } from 'lucide-react';
 import { PropertyOwner, mockPropertyOwners } from '../lib/mockData';
 
 const warrantyColors: Record<string, string> = {
@@ -11,6 +11,8 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
   const [owners, setOwners] = useState<PropertyOwner[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOwner, setSelectedOwner] = useState<PropertyOwner | null>(null);
+  const [isEditingOwner, setIsEditingOwner] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<PropertyOwner>>({});
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedTower, setSelectedTower] = useState<string>('');
   const [selectedCondominium, setSelectedCondominium] = useState<string>('');
@@ -85,6 +87,58 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
     });
     
     setShowCreateModal(false);
+  };
+
+  const handleStartEdit = () => {
+    if (selectedOwner) {
+      setEditFormData({
+        name: selectedOwner.name,
+        rut: selectedOwner.rut,
+        phone: selectedOwner.phone,
+        alternative_phone: selectedOwner.alternative_phone || '',
+        condominium: selectedOwner.condominium,
+        tower: selectedOwner.tower,
+        municipal_number: selectedOwner.municipal_number,
+        email: selectedOwner.email,
+      });
+      setIsEditingOwner(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingOwner(false);
+    setEditFormData({});
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedOwner) return;
+
+    const towerValue = (editFormData.tower || '').trim();
+    let formattedTower = towerValue.toLowerCase();
+    if (formattedTower.match(/^torre\s*\(?\d+\)?/)) {
+      // Si ya tiene el formato correcto, mantenerlo
+    } else if (formattedTower.match(/^\d+$/)) {
+      formattedTower = `torre ${formattedTower}`;
+    }
+
+    const updatedOwner: PropertyOwner = {
+      ...selectedOwner,
+      name: (editFormData.name || '').trim(),
+      rut: (editFormData.rut || '').trim().toLowerCase(),
+      phone: (editFormData.phone || '').trim(),
+      alternative_phone: (editFormData.alternative_phone || '').trim() || null,
+      condominium: (editFormData.condominium || '').trim(),
+      tower: formattedTower,
+      municipal_number: (editFormData.municipal_number || '').trim(),
+      email: (editFormData.email || '').trim().toLowerCase() || '',
+      update_date: new Date().toISOString(),
+    };
+
+    // Actualizar el propietario en el estado
+    setOwners(owners.map(owner => owner.id === selectedOwner.id ? updatedOwner : owner));
+    setSelectedOwner(updatedOwner);
+    setIsEditingOwner(false);
+    setEditFormData({});
   };
 
   const filteredOwners = useMemo(() => {
@@ -353,107 +407,258 @@ export default function OwnersPanel({ searchQuery }: { searchQuery: string }) {
       </div>
 
       {selectedOwner && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setSelectedOwner(null)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => {
+          if (!isEditingOwner) {
+            setSelectedOwner(null);
+          }
+        }}>
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800">Detalle del Propietario</h3>
-              <button
-                onClick={() => setSelectedOwner(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+                {isEditingOwner ? 'Editar Propietario' : 'Detalle del Propietario'}
+              </h3>
+              <div className="flex items-center gap-2">
+                {!isEditingOwner && (
+                  <button
+                    onClick={handleStartEdit}
+                    className="px-3 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-2 text-sm font-medium"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setIsEditingOwner(false);
+                    setEditFormData({});
+                    setSelectedOwner(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">{selectedOwner.name}</h4>
-                  <p className="text-sm sm:text-base text-gray-600">{selectedOwner.condominium}</p>
-                </div>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${warrantyColors[selectedOwner.warranty_status]}`}>
-                  {selectedOwner.warranty_status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-gray-200">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Torre</label>
-                  <p className="text-gray-900 font-semibold">{selectedOwner.tower}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">RUT</label>
-                  <p className="text-gray-900 font-semibold">{selectedOwner.rut}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Número de Departamento</label>
-                  <p className="text-gray-900 font-semibold">{selectedOwner.municipal_number}</p>
-                </div>
-              </div>
-
-              <div>
-                <h5 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Información de Contacto</h5>
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-gray-600">Teléfono Principal</label>
-                      <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.phone}</p>
+              {isEditingOwner ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveEdit();
+                  }}
+                  className="space-y-4 sm:space-y-6"
+                >
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+                      <input
+                        type="text"
+                        value={editFormData.name || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                        required
+                      />
                     </div>
-                  </div>
-                  {selectedOwner.alternative_phone && (
-                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                      <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
-                      <div className="min-w-0">
-                        <label className="block text-xs font-medium text-gray-600">Teléfono Alternativo</label>
-                        <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.alternative_phone}</p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-gray-600">Correo Electrónico</label>
-                      <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.email || 'no adjunto correo'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h5 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Información de Garantía</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="p-3 sm:p-4 bg-gradient-to-br from-[#2B5F7F]/10 to-[#00B050]/10 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F]" />
-                      <label className="text-xs sm:text-sm font-medium text-gray-600">Años de Garantía</label>
-                    </div>
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{selectedOwner.warranty_years} años</p>
-                  </div>
-                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-600 mb-2">Estado</label>
-                    <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${warrantyColors[selectedOwner.warranty_status]}`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${warrantyColors[selectedOwner.warranty_status]}`}>
                       {selectedOwner.warranty_status}
                     </span>
                   </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-200">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Recepción</label>
-                  <p className="text-gray-900">{new Date(selectedOwner.reception_date).toLocaleDateString('es-CL')}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Última Actualización</label>
-                  <p className="text-gray-900">{new Date(selectedOwner.update_date).toLocaleDateString('es-CL')}</p>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-gray-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Torre *</label>
+                      <input
+                        type="text"
+                        value={editFormData.tower || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, tower: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                        placeholder="torre 1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
+                      <input
+                        type="text"
+                        value={editFormData.rut || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, rut: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                        placeholder="12.345.678-9"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Número de Departamento *</label>
+                      <input
+                        type="text"
+                        value={editFormData.municipal_number || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, municipal_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                        placeholder="101"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Condominio *</label>
+                      <select
+                        value={editFormData.condominium || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, condominium: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none bg-white"
+                        required
+                      >
+                        <option value="condominio I">Condominio I</option>
+                        <option value="condominio II">Condominio II</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Estado del Propietario</label>
-                <p className="text-gray-900 font-semibold">{selectedOwner.status}</p>
-              </div>
+                  <div>
+                    <h5 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Información de Contacto</h5>
+                    <div className="space-y-2 sm:space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Principal *</label>
+                        <input
+                          type="tel"
+                          value={editFormData.phone || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                          placeholder="+56912345678"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Alternativo</label>
+                        <input
+                          type="tel"
+                          value={editFormData.alternative_phone || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, alternative_phone: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                          placeholder="+56987654321"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                        <input
+                          type="email"
+                          value={editFormData.email || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                          placeholder="ejemplo@email.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors font-medium flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      Guardar Cambios
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">{selectedOwner.name}</h4>
+                      <p className="text-sm sm:text-base text-gray-600">{selectedOwner.condominium}</p>
+                    </div>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${warrantyColors[selectedOwner.warranty_status]}`}>
+                      {selectedOwner.warranty_status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-gray-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Torre</label>
+                      <p className="text-gray-900 font-semibold">{selectedOwner.tower}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">RUT</label>
+                      <p className="text-gray-900 font-semibold">{selectedOwner.rut}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Número de Departamento</label>
+                      <p className="text-gray-900 font-semibold">{selectedOwner.municipal_number}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Información de Contacto</h5>
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
+                        <div className="min-w-0">
+                          <label className="block text-xs font-medium text-gray-600">Teléfono Principal</label>
+                          <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.phone}</p>
+                        </div>
+                      </div>
+                      {selectedOwner.alternative_phone && (
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                          <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
+                          <div className="min-w-0">
+                            <label className="block text-xs font-medium text-gray-600">Teléfono Alternativo</label>
+                            <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.alternative_phone}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F] flex-shrink-0" />
+                        <div className="min-w-0">
+                          <label className="block text-xs font-medium text-gray-600">Correo Electrónico</label>
+                          <p className="text-sm sm:text-base text-gray-900 truncate">{selectedOwner.email || 'no adjunto correo'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Información de Garantía</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="p-3 sm:p-4 bg-gradient-to-br from-[#2B5F7F]/10 to-[#00B050]/10 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#2B5F7F]" />
+                          <label className="text-xs sm:text-sm font-medium text-gray-600">Años de Garantía</label>
+                        </div>
+                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{selectedOwner.warranty_years} años</p>
+                      </div>
+                      <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-600 mb-2">Estado</label>
+                        <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${warrantyColors[selectedOwner.warranty_status]}`}>
+                          {selectedOwner.warranty_status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Recepción</label>
+                      <p className="text-gray-900">{new Date(selectedOwner.reception_date).toLocaleDateString('es-CL')}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Última Actualización</label>
+                      <p className="text-gray-900">{new Date(selectedOwner.update_date).toLocaleDateString('es-CL')}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Estado del Propietario</label>
+                    <p className="text-gray-900 font-semibold">{selectedOwner.status}</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Wrench, Clock, CheckCircle, XCircle, FileText, Upload, X, Eye } from 'lucide-react';
+import { Wrench, Clock, CheckCircle, XCircle, FileText, Upload, X, Eye, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 interface WorkTracking {
@@ -91,6 +91,21 @@ export default function TrackingPanel() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [newActivity, setNewActivity] = useState<string>('');
+
+  const handleAddActivity = () => {
+    if (!selectedWork || !newActivity.trim()) return;
+
+    const updatedWork = {
+      ...selectedWork,
+      workDetails: [...selectedWork.workDetails, newActivity.trim()],
+      updateDate: new Date().toISOString().split('T')[0],
+    };
+
+    setWorks(works.map(w => w.id === selectedWork.id ? updatedWork : w));
+    setSelectedWork(updatedWork);
+    setNewActivity('');
+  };
 
   return (
     <div className="space-y-6">
@@ -190,6 +205,7 @@ export default function TrackingPanel() {
                           setNewStatus(work.status);
                           setIsUpdatingStatus(false);
                           setSelectedFile(null);
+                          setNewActivity('');
                         }}
                         className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
                       >
@@ -220,6 +236,7 @@ export default function TrackingPanel() {
                   setIsUpdatingStatus(false);
                   setNewStatus('');
                   setSelectedFile(null);
+                  setNewActivity('');
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -274,19 +291,45 @@ export default function TrackingPanel() {
               {/* Bitácora de Actividades */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-3">Bitácora de Actividades</label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {selectedWork.workDetails.length > 0 ? (
                     selectedWork.workDetails.map((detail, index) => (
                       <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                         <div className="w-6 h-6 rounded-full bg-[#2B5F7F] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
                           {index + 1}
                         </div>
-                        <p className="text-sm text-gray-700">{detail}</p>
+                        <p className="text-sm text-gray-700 flex-1">{detail}</p>
                       </div>
                     ))
                   ) : (
                     <p className="text-sm text-gray-500 italic">No hay actividades registradas aún</p>
                   )}
+                  
+                  {/* Formulario para agregar nueva actividad */}
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newActivity}
+                        onChange={(e) => setNewActivity(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newActivity.trim()) {
+                            handleAddActivity();
+                          }
+                        }}
+                        placeholder="Escribe una nueva actividad..."
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm"
+                      />
+                      <button
+                        onClick={handleAddActivity}
+                        disabled={!newActivity.trim()}
+                        className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -383,6 +426,7 @@ export default function TrackingPanel() {
                         setIsUpdatingStatus(false);
                         setNewStatus('');
                         setSelectedFile(null);
+                        setNewActivity('');
                       }}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
