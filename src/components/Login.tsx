@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
+  const [loginMode, setLoginMode] = useState<'normal' | 'temporal'>('normal');
   const [email, setEmail] = useState('');
+  const [rut, setRut] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn } = useAuth();
+  const { signIn, signInWithRut } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,7 +18,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      if (loginMode === 'temporal') {
+        await signInWithRut(rut, password);
+      } else {
+        await signIn(email, password);
+      }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión. Por favor intenta de nuevo.');
     } finally {
@@ -37,21 +43,76 @@ export default function Login() {
             <p className="text-sm text-gray-500 mt-2">Sistema de Gestión Post-Venta</p>
           </div>
 
+          {/* Selector de modo de login */}
+          <div className="mb-6 flex gap-2 bg-gray-100 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('normal');
+                setError('');
+                setEmail('');
+                setPassword('');
+              }}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                loginMode === 'normal'
+                  ? 'bg-white text-[#2B5F7F] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Usuario Regular
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('temporal');
+                setError('');
+                setRut('');
+                setPassword('');
+              }}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                loginMode === 'temporal'
+                  ? 'bg-white text-[#2B5F7F] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Usuario Temporal
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Correo Electrónico
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none transition-all"
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
+            {loginMode === 'normal' ? (
+              <>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Correo Electrónico
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none transition-all"
+                    placeholder="tu@email.com"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
+                  RUT (Usuario Temporal)
+                </label>
+                <input
+                  id="rut"
+                  type="text"
+                  value={rut}
+                  onChange={(e) => setRut(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none transition-all"
+                  placeholder="12345678-9"
+                  required
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -102,14 +163,29 @@ export default function Login() {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs font-semibold text-gray-700 mb-2">Credenciales de prueba:</p>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Administrador:</span>
-                <span className="font-mono text-gray-800">admin@admin.com / admin</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Propietario:</span>
-                <span className="font-mono text-gray-800">propietario@propietario.com / propietario</span>
-              </div>
+              {loginMode === 'normal' ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Administrador:</span>
+                    <span className="font-mono text-gray-800">admin@admin.com / admin</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Propietario:</span>
+                    <span className="font-mono text-gray-800">propietario@propietario.com / propietario</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Técnico 1:</span>
+                    <span className="font-mono text-gray-800">12345678-9 / tecnico123</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Técnico 2:</span>
+                    <span className="font-mono text-gray-800">98765432-1 / tecnico456</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

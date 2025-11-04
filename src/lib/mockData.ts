@@ -32,6 +32,8 @@ export type Ticket = {
   approvedDate: string | null;
   createdDate: string;
   orderNumber: string | null;
+  preferredShift?: string; // 'AM' o 'PM' - Jornada de preferencia
+  photo?: string; // Base64 string de la foto adjunta
 };
 
 export type Order = {
@@ -61,7 +63,7 @@ export type User = {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'propietario';
+  role: 'admin' | 'propietario' | 'tecnico';
   password: string;
   lastLogin: string;
 };
@@ -3463,18 +3465,19 @@ export const mockTickets: Ticket[] = [
     id: '1',
     ticketNumber: 'TKT-2024-001',
     ownerName: 'Juan Pérez',
-    ownerEmail: 'juan.perez@email.com',
+    ownerEmail: 'propietario@email.com',
     phone: '+56912345678',
-    tower: 'Torre A',
+    tower: 'Torre 1',
     municipalNumber: '101',
-    description: 'Fuga de agua en el baño principal',
+    description: 'Fuga de agua en el baño principal, se necesita revisión urgente',
     area: 'Plomería',
-    scheduledDate: '2024-10-15 09:00',
-    status: 'Pendiente',
-    approvedBy: null,
-    approvedDate: null,
-    createdDate: '2024-10-10 08:30',
-    orderNumber: null,
+    scheduledDate: null,
+    status: 'Aprobado',
+    approvedBy: 'admin@admin.com',
+    approvedDate: '2024-10-11T10:30:00Z',
+    createdDate: '2024-10-10T08:30:00Z',
+    orderNumber: 'ORD-2024-004',
+    preferredShift: 'AM',
   },
   {
     id: '2',
@@ -3496,18 +3499,36 @@ export const mockTickets: Ticket[] = [
   {
     id: '3',
     ticketNumber: 'TKT-2024-003',
-    ownerName: 'Carlos Rodríguez',
-    ownerEmail: 'carlos.rodriguez@email.com',
-    phone: '+56923456789',
-    tower: 'Torre C',
-    municipalNumber: '310',
-    description: 'Reparación de lámpara en cocina',
+    ownerName: 'Juan Pérez',
+    ownerEmail: 'propietario@email.com',
+    phone: '+56912345678',
+    tower: 'Torre 1',
+    municipalNumber: '101',
+    description: 'Problema con la puerta del balcón que no cierra correctamente',
+    area: 'Carpintería',
+    scheduledDate: null,
+    status: 'Pendiente',
+    approvedBy: null,
+    approvedDate: null,
+    createdDate: '2024-11-04T14:20:00Z',
+    orderNumber: null,
+    preferredShift: 'PM',
+  },
+  {
+    id: '4',
+    ticketNumber: 'TKT-2024-004',
+    ownerName: 'Juan Pérez',
+    ownerEmail: 'propietario@email.com',
+    phone: '+56912345678',
+    tower: 'Torre 1',
+    municipalNumber: '101',
+    description: 'Reparación de lámpara en cocina que parpadea constantemente',
     area: 'Electricidad',
     scheduledDate: null,
     status: 'Rechazado',
     approvedBy: 'admin@admin.com',
-    approvedDate: '2024-10-10 11:30',
-    createdDate: '2024-10-09 16:00',
+    approvedDate: '2024-10-10T11:30:00Z',
+    createdDate: '2024-10-09T16:00:00Z',
     orderNumber: null,
   },
 ];

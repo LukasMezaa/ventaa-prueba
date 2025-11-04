@@ -1,5 +1,7 @@
-import { Home, FileText, Calendar, Bell, User, Ticket } from 'lucide-react';
+import { Home, FileText, Calendar, Bell, User, Ticket, Activity } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { Ticket as TicketType, mockTickets } from '../lib/mockData';
 
 interface PortalPanelProps {
   onNavigate: (section: string) => void;
@@ -8,6 +10,46 @@ interface PortalPanelProps {
 export default function PortalPanel({ onNavigate }: PortalPanelProps) {
   const { user } = useAuth();
   const isPropietario = user?.role === 'propietario';
+  const isAdmin = user?.role === 'admin';
+  
+  // Cargar tickets para calcular estadísticas
+  const loadTickets = (): TicketType[] => {
+    const stored = localStorage.getItem('tickets');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    return mockTickets;
+  };
+  
+  const [tickets, setTickets] = useState<TicketType[]>(loadTickets());
+  
+  // Escuchar actualizaciones de tickets
+  useEffect(() => {
+    const handleTicketsUpdate = (event: CustomEvent) => {
+      const updatedTickets = event.detail;
+      setTickets(updatedTickets);
+    };
+
+    window.addEventListener('ticketsUpdated', handleTicketsUpdate as EventListener);
+    
+    // También cargar tickets al montar el componente
+    const stored = localStorage.getItem('tickets');
+    if (stored) {
+      setTickets(JSON.parse(stored));
+    }
+    
+    return () => {
+      window.removeEventListener('ticketsUpdated', handleTicketsUpdate as EventListener);
+    };
+  }, []);
+  
+  // Calcular tickets activos del propietario (Pendientes y Aprobados)
+  const activeTicketsCount = isPropietario 
+    ? tickets.filter(t => 
+        t.ownerEmail === user?.email && 
+        (t.status === 'Pendiente' || t.status === 'Aprobado')
+      ).length
+    : 2; // Para admin, mantener el valor hardcodeado
 
   const menuOptions = [
     {
@@ -19,12 +61,13 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       color: 'bg-blue-500',
     },
     {
-      id: 'appointments',
-      section: 'scheduling',
-      title: 'Agendar Visita',
-      description: 'Programar una visita técnica',
-      icon: Calendar,
+      id: 'trazability',
+      section: 'trazability',
+      title: 'Trazabilidad',
+      description: 'Ver el estado de mis tickets',
+      icon: Activity,
       color: 'bg-green-500',
+      propietarioOnly: true,
     },
     {
       id: 'notifications',
@@ -44,7 +87,15 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       color: 'bg-purple-500',
       hideForPropietario: true,
     },
-  ].filter(option => !(isPropietario && option.hideForPropietario));
+  ].filter(option => {
+    // Ocultar opciones para propietarios según configuración
+    if (isPropietario && option.hideForPropietario) return false;
+    // Mostrar solo opciones de propietario si es propietario
+    if (isPropietario && !option.propietarioOnly && (option.id === 'appointments')) return false;
+    // Mostrar solo para propietarios si tiene propietarioOnly
+    if (!isPropietario && option.propietarioOnly) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -55,7 +106,9 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
             <Home className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">Portal del Propietario</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+              {isAdmin ? 'Portal de Administrador' : 'Portal del Propietario'}
+            </h1>
             <p className="text-white/90">Bienvenido a Alto San Miguel II</p>
           </div>
         </div>
@@ -114,37 +167,41 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
       </div>
 
       {/* Resumen Rápido */}
-      <div className={`grid grid-cols-1 gap-4 ${isPropietario ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+      <div className={`grid grid-cols-1 gap-4 ${isPropietario ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Solicitudes Activas</p>
-              <p className="text-3xl font-bold text-gray-800">2</p>
+              <p className="text-sm text-gray-600 mb-1">
+                {isPropietario ? 'Tickets Activos' : 'Solicitudes Activas'}
+              </p>
+              <p className="text-3xl font-bold text-gray-800">{activeTicketsCount}</p>
             </div>
             <FileText className="w-10 h-10 text-blue-500 opacity-20" />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Visitas Programadas</p>
-              <p className="text-3xl font-bold text-gray-800">1</p>
-            </div>
-            <Calendar className="w-10 h-10 text-green-500 opacity-20" />
-          </div>
-        </div>
-
         {!isPropietario && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Notificaciones</p>
-                <p className="text-3xl font-bold text-gray-800">3</p>
+          <>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Visitas Programadas</p>
+                  <p className="text-3xl font-bold text-gray-800">1</p>
+                </div>
+                <Calendar className="w-10 h-10 text-green-500 opacity-20" />
               </div>
-              <Bell className="w-10 h-10 text-yellow-500 opacity-20" />
             </div>
-          </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Notificaciones</p>
+                  <p className="text-3xl font-bold text-gray-800">3</p>
+                </div>
+                <Bell className="w-10 h-10 text-yellow-500 opacity-20" />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

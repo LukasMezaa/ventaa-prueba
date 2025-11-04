@@ -1,5 +1,5 @@
-import { Ticket, Plus, CheckCircle, XCircle, Clock, FileText, X } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, CheckCircle, XCircle, Clock, FileText, X, Calendar, Upload } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Ticket as TicketType, mockTickets } from '../lib/mockData';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,56 +7,160 @@ export default function TicketsPanel() {
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
-  const [tickets, setTickets] = useState<TicketType[]>(mockTickets);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [createdTicketNumber, setCreatedTicketNumber] = useState<string>('');
+  const [appointmentDate, setAppointmentDate] = useState<string>('');
+  const [appointmentShift, setAppointmentShift] = useState<string>('');
+  const [appointmentTime, setAppointmentTime] = useState<string>('');
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
+  // Cargar tickets desde localStorage o usar mockTickets
+  const loadTickets = (): TicketType[] => {
+    const stored = localStorage.getItem('tickets');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Si no hay localStorage, inicializar con mockTickets
+    localStorage.setItem('tickets', JSON.stringify(mockTickets));
+    return mockTickets;
+  };
+  
+  const [tickets, setTickets] = useState<TicketType[]>(loadTickets());
+  
+  // Sincronizar con localStorage cuando se actualiza el estado
+  useEffect(() => {
+    localStorage.setItem('tickets', JSON.stringify(tickets));
+    // Disparar evento personalizado para notificar a TrazabilityPanel
+    window.dispatchEvent(new CustomEvent('ticketsUpdated', { detail: tickets }));
+  }, [tickets]);
   const [formData, setFormData] = useState({
     description: '',
     area: '',
-    scheduledDate: '',
-    scheduledTime: '',
+    preferredShift: '', // 'AM' o 'PM'
+    // Campos para administrador (creación manual)
+    ownerName: '',
+    ownerEmail: '',
+    phone: '',
+    tower: '',
+    municipalNumber: '',
   });
 
   const isAdmin = user?.role === 'admin';
+  const isTecnico = user?.role === 'tecnico';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Convertir foto a base64 si existe
+    let photoBase64: string | undefined = undefined;
+    if (selectedPhoto && photoPreview) {
+      photoBase64 = photoPreview; // photoPreview ya es base64
+    }
     
     const newTicket: TicketType = {
       id: String(tickets.length + 1),
       ticketNumber: `TKT-2024-${String(tickets.length + 1).padStart(3, '0')}`,
-      ownerName: user?.name || 'Propietario',
-      ownerEmail: user?.email || '',
-      phone: '+56912345678',
-      tower: 'Torre A',
-      municipalNumber: '101',
+      ownerName: isAdmin ? formData.ownerName : (user?.name || 'Propietario'),
+      ownerEmail: isAdmin ? formData.ownerEmail : (user?.email || ''),
+      phone: isAdmin ? formData.phone : '+56912345678',
+      tower: isAdmin ? formData.tower : 'Torre A',
+      municipalNumber: isAdmin ? formData.municipalNumber : '101',
       description: formData.description,
       area: formData.area,
-      scheduledDate: formData.scheduledDate && formData.scheduledTime ? `${formData.scheduledDate} ${formData.scheduledTime}` : null,
+      scheduledDate: null, // Ya no se usa fecha/hora deseada
       status: 'Pendiente',
       approvedBy: null,
       approvedDate: null,
-      createdDate: new Date().toISOString(),
+      createdDate: new Date().toISOString(), // Fecha de creación automática
       orderNumber: null,
+      preferredShift: formData.preferredShift, // Guardar jornada de preferencia
+      photo: photoBase64, // Guardar foto en base64
     };
     
     setTickets([...tickets, newTicket]);
     setShowModal(false);
-    setFormData({ description: '', area: '', scheduledDate: '', scheduledTime: '' });
+    setFormData({ 
+      description: '', 
+      area: '', 
+      preferredShift: '',
+      ownerName: '',
+      ownerEmail: '',
+      phone: '',
+      tower: '',
+      municipalNumber: '',
+    });
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    
+    // Mostrar notificación de éxito
+    setCreatedTicketNumber(newTicket.ticketNumber);
+    setShowSuccessNotification(true);
+    
+    // Ocultar notificación después de 5 segundos
+    setTimeout(() => {
+      setShowSuccessNotification(false);
+    }, 5000);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar que sea una imagen
+      if (file.type.startsWith('image/')) {
+        setSelectedPhoto(file);
+        // Crear preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Por favor, selecciona un archivo de imagen válido');
+      }
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    // Resetear el input file
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   const handleApprove = (ticketId: string, approve: boolean) => {
+    if (approve && (!appointmentDate || !appointmentShift || !appointmentTime)) {
+      alert('Debes seleccionar una fecha, jornada y hora antes de aprobar');
+      return;
+    }
+
     setTickets(tickets.map(ticket => {
       if (ticket.id === ticketId) {
-        return {
+        const updatedTicket = {
           ...ticket,
           status: approve ? 'Aprobado' : 'Rechazado',
           approvedBy: approve ? user?.email || '' : null,
           approvedDate: approve ? new Date().toISOString() : null,
           orderNumber: approve ? `ORD-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}` : null,
         };
+        
+        // Si se aprueba, guardar la fecha y hora de cita acordada
+        if (approve && appointmentDate && appointmentTime) {
+          (updatedTicket as any).scheduledDate = `${appointmentDate} ${appointmentTime}`;
+          (updatedTicket as any).preferredShift = appointmentShift;
+        }
+        
+        return updatedTicket;
       }
       return ticket;
     }));
     setSelectedTicket(null);
+    setAppointmentDate('');
+    setAppointmentShift('');
+    setAppointmentTime('');
   };
 
   const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string }> = {
@@ -80,7 +184,7 @@ export default function TicketsPanel() {
     },
   };
 
-  const filteredTickets = isAdmin ? tickets : tickets.filter(t => t.ownerEmail === user?.email);
+  const filteredTickets = isAdmin || isTecnico ? tickets : tickets.filter(t => t.ownerEmail === user?.email);
 
   return (
     <div className="space-y-6">
@@ -125,9 +229,9 @@ export default function TicketsPanel() {
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <h3 className="text-lg font-semibold text-gray-800">
-            {isAdmin ? 'Tickets de Propietarios' : 'Mis Tickets'}
+            {isAdmin ? 'Tickets de Propietarios' : isTecnico ? 'Tickets' : 'Mis Tickets'}
           </h3>
-          {!isAdmin && (
+          {!isTecnico && (
             <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors"
@@ -143,10 +247,11 @@ export default function TicketsPanel() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">N° Ticket</th>
-                {isAdmin && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propietario</th>}
+                {(isAdmin || isTecnico) && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propietario</th>}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Descripción</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Área</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Fecha Programada</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Fecha de Creación</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Preferencia</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Estado</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Acciones</th>
               </tr>
@@ -158,11 +263,14 @@ export default function TicketsPanel() {
                 return (
                   <tr key={ticket.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{ticket.ticketNumber}</td>
-                    {isAdmin && <td className="px-4 py-3 text-sm text-gray-700">{ticket.ownerName}</td>}
+                    {(isAdmin || isTecnico) && <td className="px-4 py-3 text-sm text-gray-700">{ticket.ownerName}</td>}
                     <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate">{ticket.description}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{ticket.area}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {ticket.scheduledDate ? new Date(ticket.scheduledDate).toLocaleString('es-CL') : 'No programada'}
+                      {new Date(ticket.createdDate).toLocaleDateString('es-CL')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {ticket.preferredShift || '-'}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${config.bgColor} ${config.textColor}`}>
@@ -172,10 +280,26 @@ export default function TicketsPanel() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => setSelectedTicket(ticket)}
-                        className="px-3 py-1 text-sm text-[#2B5F7F] hover:text-[#1a4968] hover:underline"
+                        onClick={() => {
+                          setSelectedTicket(ticket);
+                          // Inicializar campos de agendamiento
+                          setAppointmentDate('');
+                          setAppointmentShift(ticket.preferredShift || '');
+                          setAppointmentTime('');
+                        }}
+                        className="px-3 py-1 text-sm bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-1"
                       >
-                        Ver Detalle
+                        {isAdmin && !isTecnico ? (
+                          <>
+                            <Calendar className="w-4 h-4" />
+                            Agendar
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4" />
+                            Ver Detalle
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -188,32 +312,127 @@ export default function TicketsPanel() {
 
       {/* Modal de Nueva Solicitud (Propietario) */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => {
+          setShowModal(false);
+          setSelectedPhoto(null);
+          setPhotoPreview(null);
+          setFormData({ 
+            description: '', 
+            area: '', 
+            preferredShift: '',
+            ownerName: '',
+            ownerEmail: '',
+            phone: '',
+            tower: '',
+            municipalNumber: '',
+          });
+        }}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header fijo */}
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h3 className="text-xl font-bold text-gray-800">Nuevo Ticket</h3>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setSelectedPhoto(null);
+                  setPhotoPreview(null);
+                  setFormData({ 
+                    description: '', 
+                    area: '', 
+                    preferredShift: '',
+                    ownerName: '',
+                    ownerEmail: '',
+                    phone: '',
+                    tower: '',
+                    municipalNumber: '',
+                  });
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción del Problema</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
-                  placeholder="Describe el problema que necesitas resolver..."
-                  required
-                />
-              </div>
+            {/* Formulario con contenido scrolleable */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              {/* Contenido scrolleable */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Campos de propietario solo para administrador */}
+                {isAdmin && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Propietario *</label>
+                        <input
+                          type="text"
+                          value={formData.ownerName}
+                          onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                          placeholder="Ej: Juan Pérez"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email del Propietario</label>
+                        <input
+                          type="email"
+                          value={formData.ownerEmail}
+                          onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                          placeholder="ejemplo@email.com (opcional)"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                          placeholder="+56912345678"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Torre *</label>
+                        <input
+                          type="text"
+                          value={formData.tower}
+                          onChange={(e) => setFormData({ ...formData, tower: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                          placeholder="Ej: Torre 1"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">N° Municipal *</label>
+                      <input
+                        type="text"
+                        value={formData.municipalNumber}
+                        onChange={(e) => setFormData({ ...formData, municipalNumber: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                        placeholder="Ej: 101"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descripción del Problema</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                    placeholder="Describe el problema que necesitas resolver..."
+                    required
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
                   <select
@@ -233,38 +452,103 @@ export default function TicketsPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Deseada</label>
-                  <input
-                    type="date"
-                    value={formData.scheduledDate}
-                    onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adjuntar Foto</label>
+                  <div className="space-y-2">
+                    {!photoPreview ? (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">Haz clic para seleccionar una foto</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF hasta 10MB</p>
+                        </div>
+                        <input
+                          id="photo-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    ) : (
+                      <div className="relative">
+                        <div className="border-2 border-gray-300 rounded-lg p-2">
+                          <img
+                            src={photoPreview}
+                            alt="Vista previa"
+                            className="w-full h-48 object-cover rounded-lg"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemovePhoto}
+                          className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora Deseada</label>
-                  <input
-                    type="time"
-                    value={formData.scheduledTime}
-                    onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
-                  />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jornada de Preferencia *</label>
+                  <div className="flex gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, preferredShift: 'AM' })}
+                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                        formData.preferredShift === 'AM'
+                          ? 'bg-[#2B5F7F] text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, preferredShift: 'PM' })}
+                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                        formData.preferredShift === 'PM'
+                          ? 'bg-[#2B5F7F] text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      PM
+                    </button>
+                  </div>
+                  {!formData.preferredShift && (
+                    <p className="text-xs text-red-600 mt-1">Debes seleccionar una jornada</p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              {/* Botones fijos en la parte inferior */}
+              <div className="p-6 border-t border-gray-200 flex gap-3 flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedPhoto(null);
+                    setPhotoPreview(null);
+                    setFormData({ 
+                      description: '', 
+                      area: '', 
+                      preferredShift: '',
+                      ownerName: '',
+                      ownerEmail: '',
+                      phone: '',
+                      tower: '',
+                      municipalNumber: '',
+                    });
+                  }}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors"
+                  disabled={!formData.preferredShift}
+                  className="flex-1 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Crear Ticket
                 </button>
@@ -276,12 +560,23 @@ export default function TicketsPanel() {
 
       {/* Modal de Detalle y Aprobación (Admin) */}
       {selectedTicket && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedTicket(null)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => {
+          setSelectedTicket(null);
+          setAppointmentDate('');
+          setAppointmentShift('');
+        }}>
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <h3 className="text-xl font-bold text-gray-800">Detalle del Ticket</h3>
+              <h3 className="text-xl font-bold text-gray-800">
+                {isAdmin && selectedTicket.status === 'Pendiente' ? 'Agendar y Aprobar Ticket' : 'Detalle del Ticket'}
+              </h3>
               <button
-                onClick={() => setSelectedTicket(null)}
+                onClick={() => {
+                  setSelectedTicket(null);
+                  setAppointmentDate('');
+                  setAppointmentShift('');
+                  setAppointmentTime('');
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -330,32 +625,155 @@ export default function TicketsPanel() {
                 <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">{selectedTicket.description}</p>
               </div>
 
-              {selectedTicket.scheduledDate && (
+              {selectedTicket.photo && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Fecha Programada</label>
-                  <p className="text-gray-900">{new Date(selectedTicket.scheduledDate).toLocaleString('es-CL')}</p>
-                </div>
-              )}
-
-              {isAdmin && selectedTicket.status === 'Pendiente' && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 mb-3">Acción del Administrador:</p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleApprove(selectedTicket.id, true)}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      Aprobar y Crear Orden
-                    </button>
-                    <button
-                      onClick={() => handleApprove(selectedTicket.id, false)}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      Rechazar
-                    </button>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Foto Adjunta</label>
+                  <div className="border-2 border-gray-300 rounded-lg p-2 bg-gray-50">
+                    <img
+                      src={selectedTicket.photo}
+                      alt="Foto del problema"
+                      className="w-full max-h-96 object-contain rounded-lg"
+                    />
                   </div>
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Creación</label>
+                <p className="text-gray-900">{new Date(selectedTicket.createdDate).toLocaleString('es-CL')}</p>
+              </div>
+              
+              {selectedTicket.preferredShift && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Jornada de Preferencia del Propietario</label>
+                  <p className="text-gray-900 font-semibold">{selectedTicket.preferredShift}</p>
+                </div>
+              )}
+
+              {isAdmin && selectedTicket.status === 'Pendiente' && !isTecnico && (
+                <div className="pt-4 border-t border-gray-200 space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">Agendar Cita (coordinada con el propietario):</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de la Cita *</label>
+                        <input
+                          type="date"
+                          value={appointmentDate}
+                          onChange={(e) => setAppointmentDate(e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Jornada *</label>
+                        <div className="flex gap-3 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppointmentShift('AM');
+                              setAppointmentTime(''); // Resetear hora al cambiar jornada
+                            }}
+                            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                              appointmentShift === 'AM'
+                                ? 'bg-[#2B5F7F] text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppointmentShift('PM');
+                              setAppointmentTime(''); // Resetear hora al cambiar jornada
+                            }}
+                            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                              appointmentShift === 'PM'
+                                ? 'bg-[#2B5F7F] text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
+                        {!appointmentShift && (
+                          <p className="text-xs text-red-600 mt-1">Debes seleccionar una jornada</p>
+                        )}
+                      </div>
+                      {appointmentShift && (
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hora Acordada *</label>
+                          <input
+                            type="time"
+                            value={appointmentTime}
+                            onChange={(e) => setAppointmentTime(e.target.value)}
+                            min={appointmentShift === 'AM' ? '08:00' : '13:00'}
+                            max={appointmentShift === 'AM' ? '12:00' : '18:00'}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                            placeholder={appointmentShift === 'AM' ? '08:00 - 12:00' : '13:00 - 18:00'}
+                            required
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Rango disponible: {appointmentShift === 'AM' ? '08:00 - 12:00' : '13:00 - 18:00'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Acción del Administrador:</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleApprove(selectedTicket.id, true)}
+                        disabled={!appointmentDate || !appointmentShift || !appointmentTime}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Aprobar y Crear Orden
+                      </button>
+                      <button
+                        onClick={() => handleApprove(selectedTicket.id, false)}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notificación de éxito */}
+      {showSuccessNotification && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5">
+          <div className="bg-white rounded-lg shadow-xl border border-green-200 p-4 max-w-md">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 mb-1">¡Ticket creado exitosamente!</h4>
+                <p className="text-sm text-gray-600 mb-2">
+                  Tu ticket <span className="font-semibold text-[#2B5F7F]">{createdTicketNumber}</span> ha sido creado correctamente.
+                </p>
+                <p className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                  <Clock className="w-4 h-4 inline mr-1 text-yellow-600" />
+                  Tu ticket está pendiente de revisión. Recibirás una notificación cuando sea aprobado o rechazado.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessNotification(false)}
+                className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
             </div>
           </div>
         </div>

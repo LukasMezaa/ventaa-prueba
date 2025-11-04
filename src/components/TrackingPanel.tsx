@@ -1,5 +1,12 @@
-import { Wrench, Clock, CheckCircle, XCircle, FileText, Upload, X, Eye, Plus } from 'lucide-react';
+import { Wrench, Clock, CheckCircle, XCircle, FileText, Upload, X, Eye, Plus, Image as ImageIcon } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+
+interface WorkActivity {
+  text: string;
+  image?: string; // Base64 string
+  date: string;
+}
 
 interface WorkTracking {
   id: string;
@@ -8,7 +15,7 @@ interface WorkTracking {
   property: string;
   area: string;
   status: string;
-  workDetails: string[];
+  workDetails: WorkActivity[];
   startDate: string;
   updateDate: string;
   document?: string;
@@ -22,7 +29,10 @@ const mockWorks: WorkTracking[] = [
       property: 'Torre 1 - 101',
       area: 'Plomería',
       status: 'En Ejecución',
-      workDetails: ['Se picó cerámica del baño', 'Se está conectando nueva tubería'],
+      workDetails: [
+        { text: 'Se picó cerámica del baño', date: '2024-10-02' },
+        { text: 'Se está conectando nueva tubería', date: '2024-10-03' }
+      ],
       startDate: '2024-10-02',
       updateDate: '2024-10-08',
     },
@@ -44,7 +54,11 @@ const mockWorks: WorkTracking[] = [
       property: 'Torre 3 - 310',
       area: 'Gasfitería',
       status: 'Terminada',
-      workDetails: ['Reparación de tubería', 'Instalación de válvulas', 'Prueba de presión'],
+      workDetails: [
+        { text: 'Reparación de tubería', date: '2024-09-28' },
+        { text: 'Instalación de válvulas', date: '2024-09-30' },
+        { text: 'Prueba de presión', date: '2024-10-01' }
+      ],
       startDate: '2024-09-28',
       updateDate: '2024-10-06',
       document: 'certificado.pdf',
@@ -86,25 +100,62 @@ const statusConfig: Record<string, { color: string; icon: any; bgColor: string }
 };
 
 export default function TrackingPanel() {
+  const { user } = useAuth();
+  const isTecnico = user?.role === 'tecnico';
   const [selectedWork, setSelectedWork] = useState<WorkTracking | null>(null);
   const [works, setWorks] = useState<WorkTracking[]>(mockWorks);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newActivity, setNewActivity] = useState<string>('');
+  const [activityImage, setActivityImage] = useState<File | null>(null);
+  const [activityImagePreview, setActivityImagePreview] = useState<string | null>(null);
+
+  const handleActivityImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        setActivityImage(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setActivityImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Por favor, selecciona un archivo de imagen válido');
+      }
+    }
+  };
+
+  const handleRemoveActivityImage = () => {
+    setActivityImage(null);
+    setActivityImagePreview(null);
+    const fileInput = document.getElementById('activity-image-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
 
   const handleAddActivity = () => {
     if (!selectedWork || !newActivity.trim()) return;
 
+    const newActivityItem: WorkActivity = {
+      text: newActivity.trim(),
+      image: activityImagePreview || undefined,
+      date: new Date().toISOString().split('T')[0],
+    };
+
     const updatedWork = {
       ...selectedWork,
-      workDetails: [...selectedWork.workDetails, newActivity.trim()],
+      workDetails: [...selectedWork.workDetails, newActivityItem],
       updateDate: new Date().toISOString().split('T')[0],
     };
 
     setWorks(works.map(w => w.id === selectedWork.id ? updatedWork : w));
     setSelectedWork(updatedWork);
     setNewActivity('');
+    setActivityImage(null);
+    setActivityImagePreview(null);
   };
 
   return (
@@ -298,38 +349,91 @@ export default function TrackingPanel() {
                         <div className="w-6 h-6 rounded-full bg-[#2B5F7F] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
                           {index + 1}
                         </div>
-                        <p className="text-sm text-gray-700 flex-1">{detail}</p>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 mb-1">{detail.text}</p>
+                          {detail.image && (
+                            <div className="mt-2 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                              <img
+                                src={detail.image}
+                                alt={`Evidencia ${index + 1}`}
+                                className="w-full max-h-48 object-contain rounded-lg"
+                              />
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">{new Date(detail.date).toLocaleDateString('es-CL')}</p>
+                        </div>
                       </div>
                     ))
                   ) : (
                     <p className="text-sm text-gray-500 italic">No hay actividades registradas aún</p>
                   )}
                   
-                  {/* Formulario para agregar nueva actividad */}
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newActivity}
-                        onChange={(e) => setNewActivity(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && newActivity.trim()) {
-                            handleAddActivity();
-                          }
-                        }}
-                        placeholder="Escribe una nueva actividad..."
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm"
-                      />
+                  {/* Formulario para agregar nueva actividad - Solo para técnicos */}
+                  {isTecnico && (
+                    <div className="pt-2 border-t border-gray-200 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Actividad</label>
+                        <input
+                          type="text"
+                          value={newActivity}
+                          onChange={(e) => setNewActivity(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && newActivity.trim() && !e.shiftKey) {
+                              e.preventDefault();
+                              handleAddActivity();
+                            }
+                          }}
+                          placeholder="Escribe una nueva actividad..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none text-sm"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Adjuntar Imagen (Opcional)</label>
+                        {!activityImagePreview ? (
+                          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-3 pb-3">
+                              <ImageIcon className="w-6 h-6 text-gray-400 mb-1" />
+                              <p className="text-xs text-gray-600">Haz clic para seleccionar una imagen</p>
+                            </div>
+                            <input
+                              id="activity-image-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleActivityImageChange}
+                              className="hidden"
+                            />
+                          </label>
+                        ) : (
+                          <div className="relative">
+                            <div className="border-2 border-gray-300 rounded-lg p-2 bg-white">
+                              <img
+                                src={activityImagePreview}
+                                alt="Vista previa"
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleRemoveActivityImage}
+                              className="absolute top-3 right-3 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
                       <button
                         onClick={handleAddActivity}
                         disabled={!newActivity.trim()}
-                        className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
+                        className="w-full px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium"
                       >
                         <Plus className="w-4 h-4" />
-                        Agregar
+                        Agregar Actividad
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -427,6 +531,8 @@ export default function TrackingPanel() {
                         setNewStatus('');
                         setSelectedFile(null);
                         setNewActivity('');
+                        setActivityImage(null);
+                        setActivityImagePreview(null);
                       }}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >

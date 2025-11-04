@@ -1,5 +1,6 @@
-import { Building2, ClipboardList, Users, BarChart3, LogOut, X, Home, Calendar, FileText, Wrench, Bell, Settings, Ticket } from 'lucide-react';
+import { Building2, Users, BarChart3, LogOut, X, Home, Wrench, Settings, Ticket, Activity, ChevronDown, ChevronUp, Calendar, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   activeSection: string;
@@ -10,18 +11,31 @@ interface SidebarProps {
 
 export default function Sidebar({ activeSection, onSectionChange, isOpen, onClose }: SidebarProps) {
   const { signOut, user } = useAuth();
+  const [reportsOpen, setReportsOpen] = useState(false);
 
   const menuItems = [
     { id: 'portal', label: 'Inicio', icon: Home },
     { id: 'tickets', label: 'Tickets', icon: Ticket },
+    { id: 'trazability', label: 'Trazabilidad', icon: Activity, propietarioOnly: true },
     { id: 'owners', label: 'Propietarios', icon: Users },
-    { id: 'scheduling', label: 'Agendamiento', icon: Calendar },
-    { id: 'requests', label: 'Solicitudes', icon: FileText },
     { id: 'tracking', label: 'Seguimiento de Trabajos', icon: Wrench },
-    { id: 'dashboard', label: 'Dashboards', icon: BarChart3 },
+    { id: 'scheduling', label: 'Agendamiento', icon: Calendar, adminOnly: true },
+  ];
+
+  const reportsSubmenu = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'notifications', label: 'Notificaciones', icon: Bell },
     { id: 'admin', label: 'Administración', icon: Settings },
   ];
+
+  const isReportsActive = activeSection === 'dashboard' || activeSection === 'notifications' || activeSection === 'admin';
+
+  // Abrir automáticamente el dropdown si estamos en una sección de reportes
+  useEffect(() => {
+    if (isReportsActive && !reportsOpen) {
+      setReportsOpen(true);
+    }
+  }, [activeSection, isReportsActive, reportsOpen]);
 
   return (
     <>
@@ -54,8 +68,28 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
           {menuItems
             .filter((item) => {
               // Filtrar según rol
-              if (item.id === 'admin' || item.id === 'owners' || item.id === 'requests' || item.id === 'tracking' || item.id === 'dashboard' || item.id === 'notifications') {
+              if (item.id === 'owners') {
                 return user?.role === 'admin';
+              }
+              // Tracking para admin y tecnico
+              if (item.id === 'tracking') {
+                return user?.role === 'admin' || user?.role === 'tecnico';
+              }
+              // Ocultar Agendamiento para propietarios y técnicos
+              if ((item as any).adminOnly) {
+                return user?.role === 'admin';
+              }
+              // Mostrar Trazabilidad solo para propietarios
+              if ((item as any).propietarioOnly) {
+                return user?.role === 'propietario';
+              }
+              // Portal solo para admin y propietario
+              if (item.id === 'portal') {
+                return user?.role === 'admin' || user?.role === 'propietario';
+              }
+              // Tickets: todos pueden ver
+              if (item.id === 'tickets') {
+                return true;
               }
               return true;
             })
@@ -81,6 +115,57 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
               </li>
             );
           })}
+
+          {/* Menú de Reportes con Dropdown - Solo para Admin */}
+          {user?.role === 'admin' && (
+            <li>
+              <button
+                onClick={() => setReportsOpen(!reportsOpen)}
+                className={`w-full flex items-center justify-between px-3 lg:px-4 py-3 rounded-lg transition-all ${
+                  isReportsActive
+                    ? 'bg-gradient-to-r from-[#2B5F7F] to-[#00B050] text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium truncate">Reportes</span>
+                </div>
+                {reportsOpen ? (
+                  <ChevronUp className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                )}
+              </button>
+              
+              {reportsOpen && (
+                <ul className="ml-4 mt-2 space-y-1 border-l-2 border-gray-200 pl-2">
+                  {reportsSubmenu.map((subItem) => {
+                    const SubIcon = subItem.icon;
+                    const isSubActive = activeSection === subItem.id;
+                    return (
+                      <li key={subItem.id}>
+                        <button
+                          onClick={() => {
+                            onSectionChange(subItem.id);
+                            onClose();
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 lg:px-4 py-2 rounded-lg transition-all text-sm ${
+                            isSubActive
+                              ? 'bg-gradient-to-r from-[#2B5F7F] to-[#00B050] text-white shadow-md'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <SubIcon className="w-4 h-4 flex-shrink-0" />
+                          <span className="font-medium truncate">{subItem.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          )}
         </ul>
       </nav>
 
@@ -93,7 +178,9 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-800 truncate">{user?.email}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.role === 'admin' ? 'Administrador' : 'Propietario'}</p>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.role === 'admin' ? 'Administrador' : user?.role === 'tecnico' ? 'Técnico' : 'Propietario'}
+            </p>
           </div>
         </div>
         <button
