@@ -1,6 +1,7 @@
 import { Plus, CheckCircle, XCircle, Clock, FileText, X, Calendar, Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Ticket as TicketType, mockTickets } from '../lib/mockData';
+// import { mockTickets } from '../lib/mockData'; // Ocultado - descomentar si se necesita restaurar tickets mock
+import { Ticket as TicketType, mockPropertyOwners } from '../lib/mockData';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function TicketsPanel() {
@@ -15,15 +16,17 @@ export default function TicketsPanel() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
-  // Cargar tickets desde localStorage o usar mockTickets
+  // Cargar tickets desde localStorage o usar array vacío
   const loadTickets = (): TicketType[] => {
     const stored = localStorage.getItem('tickets');
     if (stored) {
       return JSON.parse(stored);
     }
-    // Si no hay localStorage, inicializar con mockTickets
-    localStorage.setItem('tickets', JSON.stringify(mockTickets));
-    return mockTickets;
+    // Si no hay localStorage, inicializar con array vacío (mockTickets están ocultos)
+    // Para restaurar tickets mock, cambiar [] por mockTickets
+    const emptyTickets: TicketType[] = [];
+    localStorage.setItem('tickets', JSON.stringify(emptyTickets));
+    return emptyTickets;
   };
   
   const [tickets, setTickets] = useState<TicketType[]>(loadTickets());
@@ -58,14 +61,40 @@ export default function TicketsPanel() {
       photoBase64 = photoPreview; // photoPreview ya es base64
     }
     
+    // Si es propietario, buscar su información completa en mockPropertyOwners
+    let ownerInfo = {
+      name: user?.name || 'Propietario',
+      email: user?.email || '',
+      phone: '+56912345678',
+      tower: 'Torre A',
+      municipalNumber: '101',
+    };
+    
+    if (!isAdmin && user?.email) {
+      // Buscar información del propietario por email
+      const propertyOwner = mockPropertyOwners.find(po => 
+        po.email && po.email.toLowerCase() === user.email.toLowerCase()
+      );
+      
+      if (propertyOwner) {
+        ownerInfo = {
+          name: propertyOwner.name,
+          email: propertyOwner.email || user.email,
+          phone: propertyOwner.phone,
+          tower: propertyOwner.tower,
+          municipalNumber: propertyOwner.municipal_number,
+        };
+      }
+    }
+    
     const newTicket: TicketType = {
       id: String(tickets.length + 1),
       ticketNumber: `TKT-2024-${String(tickets.length + 1).padStart(3, '0')}`,
-      ownerName: isAdmin ? formData.ownerName : (user?.name || 'Propietario'),
-      ownerEmail: isAdmin ? formData.ownerEmail : (user?.email || ''),
-      phone: isAdmin ? formData.phone : '+56912345678',
-      tower: isAdmin ? formData.tower : 'Torre A',
-      municipalNumber: isAdmin ? formData.municipalNumber : '101',
+      ownerName: isAdmin ? formData.ownerName : ownerInfo.name,
+      ownerEmail: isAdmin ? formData.ownerEmail : ownerInfo.email,
+      phone: isAdmin ? formData.phone : ownerInfo.phone,
+      tower: isAdmin ? formData.tower : ownerInfo.tower,
+      municipalNumber: isAdmin ? formData.municipalNumber : ownerInfo.municipalNumber,
       description: formData.description,
       area: formData.area,
       scheduledDate: null, // Ya no se usa fecha/hora deseada
@@ -137,9 +166,11 @@ export default function TicketsPanel() {
       return;
     }
 
-    setTickets(tickets.map(ticket => {
+    let approvedTicket: TicketType | null = null;
+
+    const updatedTickets = tickets.map(ticket => {
       if (ticket.id === ticketId) {
-        const updatedTicket = {
+        const updatedTicket: TicketType = {
           ...ticket,
           status: approve ? 'Aprobado' : 'Rechazado',
           approvedBy: approve ? user?.email || '' : null,
@@ -149,14 +180,48 @@ export default function TicketsPanel() {
         
         // Si se aprueba, guardar la fecha y hora de cita acordada
         if (approve && appointmentDate && appointmentTime) {
-          (updatedTicket as any).scheduledDate = `${appointmentDate} ${appointmentTime}`;
-          (updatedTicket as any).preferredShift = appointmentShift;
+          updatedTicket.scheduledDate = `${appointmentDate}T${appointmentTime}:00`;
+          updatedTicket.preferredShift = appointmentShift;
+          approvedTicket = updatedTicket;
         }
         
         return updatedTicket;
       }
       return ticket;
-    }));
+    });
+
+    setTickets(updatedTickets);
+
+    // Si se aprobó el ticket, crear un registro en Seguimiento de Trabajos
+    if (approve && approvedTicket) {
+      const ticket = approvedTicket as TicketType;
+      if (ticket.orderNumber) {
+        const newWork = {
+          id: `work-${ticket.id}`,
+          orderNumber: ticket.orderNumber,
+          ownerName: ticket.ownerName,
+          property: `${ticket.tower} - ${ticket.municipalNumber}`,
+          area: ticket.area,
+          status: 'Pendiente de Visita',
+          workDetails: [] as Array<{ text: string; image?: string; date: string }>,
+          startDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          updateDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        };
+
+        // Guardar en localStorage
+        const existingWorks = localStorage.getItem('workTracking');
+        let works = existingWorks ? JSON.parse(existingWorks) : [];
+        // Verificar si ya existe para evitar duplicados
+        const exists = works.some((w: any) => w.orderNumber === newWork.orderNumber);
+        if (!exists) {
+          works.push(newWork);
+          localStorage.setItem('workTracking', JSON.stringify(works));
+          // Disparar evento para que TrackingPanel lo capture
+          window.dispatchEvent(new CustomEvent('newWorkCreated', { detail: newWork }));
+        }
+      }
+    }
+
     setSelectedTicket(null);
     setAppointmentDate('');
     setAppointmentShift('');
@@ -181,6 +246,12 @@ export default function TicketsPanel() {
       icon: XCircle,
       bgColor: 'bg-red-100',
       textColor: 'text-red-800',
+    },
+    'Finalizado': {
+      color: 'text-blue-800',
+      icon: CheckCircle,
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-800',
     },
   };
 
@@ -584,6 +655,30 @@ export default function TicketsPanel() {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Información del Propietario */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">Información del Propietario</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Nombre</label>
+                    <p className="text-sm text-gray-900 font-medium">{selectedTicket.ownerName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Email</label>
+                    <p className="text-sm text-gray-900">{selectedTicket.ownerEmail || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Teléfono</label>
+                    <p className="text-sm text-gray-900">{selectedTicket.phone}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Propiedad</label>
+                    <p className="text-sm text-gray-900">{selectedTicket.tower} - Dep. {selectedTicket.municipalNumber}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información del Ticket */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">N° Ticket</label>
@@ -603,50 +698,37 @@ export default function TicketsPanel() {
                   })()}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Propietario</label>
-                  <p className="text-gray-900">{selectedTicket.ownerName}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Teléfono</label>
-                  <p className="text-gray-900">{selectedTicket.phone}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Torre</label>
-                  <p className="text-gray-900">{selectedTicket.tower} - {selectedTicket.municipalNumber}</p>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
                   <p className="text-gray-900">{selectedTicket.area}</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Descripción</label>
-                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">{selectedTicket.description}</p>
-              </div>
-
-              {selectedTicket.photo && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Foto Adjunta</label>
-                  <div className="border-2 border-gray-300 rounded-lg p-2 bg-gray-50">
-                    <img
-                      src={selectedTicket.photo}
-                      alt="Foto del problema"
-                      className="w-full max-h-96 object-contain rounded-lg"
-                    />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Creación</label>
+                  <p className="text-gray-900">{new Date(selectedTicket.createdDate).toLocaleString('es-CL')}</p>
                 </div>
-              )}
+              </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Creación</label>
-                <p className="text-gray-900">{new Date(selectedTicket.createdDate).toLocaleString('es-CL')}</p>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Descripción del Problema</label>
+                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">{selectedTicket.description}</p>
               </div>
-              
+
               {selectedTicket.preferredShift && (
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Jornada de Preferencia del Propietario</label>
                   <p className="text-gray-900 font-semibold">{selectedTicket.preferredShift}</p>
+                </div>
+              )}
+
+              {selectedTicket.photo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Foto Adjunta por el Propietario</label>
+                  <div className="border-2 border-gray-300 rounded-lg p-2 bg-gray-50">
+                    <img
+                      src={selectedTicket.photo}
+                      alt="Foto del problema adjuntada por el propietario"
+                      className="w-full max-h-96 object-contain rounded-lg"
+                    />
+                  </div>
                 </div>
               )}
 

@@ -1,5 +1,5 @@
 import { Wrench, Clock, CheckCircle, XCircle, FileText, Upload, X, Eye, Plus, Image as ImageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface WorkActivity {
@@ -21,59 +21,61 @@ interface WorkTracking {
   document?: string;
 }
 
+// OCULTADO: Estos trabajos mock se pueden restaurar comentando las siguientes líneas y descomentando el array
+// Para volver a usar estos trabajos, descomenta el array y cambia loadWorks() para usar mockWorks en lugar de []
 const mockWorks: WorkTracking[] = [
-    {
-      id: '1',
-      orderNumber: 'ORD-2024-001',
-      ownerName: 'Juan Pérez',
-      property: 'Torre 1 - 101',
-      area: 'Plomería',
-      status: 'En Ejecución',
-      workDetails: [
-        { text: 'Se picó cerámica del baño', date: '2024-10-02' },
-        { text: 'Se está conectando nueva tubería', date: '2024-10-03' }
-      ],
-      startDate: '2024-10-02',
-      updateDate: '2024-10-08',
-    },
-    {
-      id: '2',
-      orderNumber: 'ORD-2024-002',
-      ownerName: 'María González',
-      property: 'Torre 2 - 205',
-      area: 'Carpintería',
-      status: 'Pendiente de Visita',
-      workDetails: [],
-      startDate: '2024-10-05',
-      updateDate: '2024-10-05',
-    },
-    {
-      id: '3',
-      orderNumber: 'ORD-2024-003',
-      ownerName: 'Carlos Rodríguez',
-      property: 'Torre 3 - 310',
-      area: 'Gasfitería',
-      status: 'Terminada',
-      workDetails: [
-        { text: 'Reparación de tubería', date: '2024-09-28' },
-        { text: 'Instalación de válvulas', date: '2024-09-30' },
-        { text: 'Prueba de presión', date: '2024-10-01' }
-      ],
-      startDate: '2024-09-28',
-      updateDate: '2024-10-06',
-      document: 'certificado.pdf',
-    },
-    {
-      id: '4',
-      orderNumber: 'ORD-2024-004',
-      ownerName: 'Ana Martínez',
-      property: 'Torre 1 - 115',
-      area: 'Pintura',
-      status: 'No Aplica',
-      workDetails: [],
-      startDate: '2024-09-15',
-      updateDate: '2024-09-20',
-    },
+  // {
+  //   id: '1',
+  //   orderNumber: 'ORD-2024-001',
+  //   ownerName: 'Juan Pérez',
+  //   property: 'Torre 1 - 101',
+  //   area: 'Plomería',
+  //   status: 'En Ejecución',
+  //   workDetails: [
+  //     { text: 'Se picó cerámica del baño', date: '2024-10-02' },
+  //     { text: 'Se está conectando nueva tubería', date: '2024-10-03' }
+  //   ],
+  //   startDate: '2024-10-02',
+  //   updateDate: '2024-10-08',
+  // },
+  // {
+  //   id: '2',
+  //   orderNumber: 'ORD-2024-002',
+  //   ownerName: 'María González',
+  //   property: 'Torre 2 - 205',
+  //   area: 'Carpintería',
+  //   status: 'Pendiente de Visita',
+  //   workDetails: [],
+  //   startDate: '2024-10-05',
+  //   updateDate: '2024-10-05',
+  // },
+  // {
+  //   id: '3',
+  //   orderNumber: 'ORD-2024-003',
+  //   ownerName: 'Carlos Rodríguez',
+  //   property: 'Torre 3 - 310',
+  //   area: 'Gasfitería',
+  //   status: 'Terminada',
+  //   workDetails: [
+  //     { text: 'Reparación de tubería', date: '2024-09-28' },
+  //     { text: 'Instalación de válvulas', date: '2024-09-30' },
+  //     { text: 'Prueba de presión', date: '2024-10-01' }
+  //   ],
+  //   startDate: '2024-09-28',
+  //   updateDate: '2024-10-06',
+  //   document: 'certificado.pdf',
+  // },
+  // {
+  //   id: '4',
+  //   orderNumber: 'ORD-2024-004',
+  //   ownerName: 'Ana Martínez',
+  //   property: 'Torre 1 - 115',
+  //   area: 'Pintura',
+  //   status: 'No Aplica',
+  //   workDetails: [],
+  //   startDate: '2024-09-15',
+  //   updateDate: '2024-09-20',
+  // },
 ];
 
 const statusConfig: Record<string, { color: string; icon: any; bgColor: string }> = {
@@ -103,13 +105,59 @@ export default function TrackingPanel() {
   const { user } = useAuth();
   const isTecnico = user?.role === 'tecnico';
   const [selectedWork, setSelectedWork] = useState<WorkTracking | null>(null);
-  const [works, setWorks] = useState<WorkTracking[]>(mockWorks);
+  
+  // Cargar trabajos desde localStorage o usar array vacío
+  const loadWorks = (): WorkTracking[] => {
+    const stored = localStorage.getItem('workTracking');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Si no hay localStorage, inicializar con array vacío (mockWorks están ocultos)
+    // Para restaurar trabajos mock, cambiar [] por mockWorks
+    const emptyWorks: WorkTracking[] = [];
+    localStorage.setItem('workTracking', JSON.stringify(emptyWorks));
+    return emptyWorks;
+  };
+  
+  const [works, setWorks] = useState<WorkTracking[]>(loadWorks());
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newActivity, setNewActivity] = useState<string>('');
   const [activityImage, setActivityImage] = useState<File | null>(null);
   const [activityImagePreview, setActivityImagePreview] = useState<string | null>(null);
+
+  // Sincronizar con localStorage cuando se actualiza el estado
+  useEffect(() => {
+    localStorage.setItem('workTracking', JSON.stringify(works));
+  }, [works]);
+
+  // Escuchar eventos de creación de nuevos trabajos
+  useEffect(() => {
+    const handleNewWork = (event: CustomEvent) => {
+      const newWork = event.detail;
+      setWorks(prevWorks => {
+        // Verificar si el trabajo ya existe para evitar duplicados
+        const exists = prevWorks.some(w => w.orderNumber === newWork.orderNumber);
+        if (exists) {
+          return prevWorks;
+        }
+        return [...prevWorks, newWork];
+      });
+    };
+
+    window.addEventListener('newWorkCreated', handleNewWork as EventListener);
+    
+    // También cargar trabajos al montar el componente
+    const stored = localStorage.getItem('workTracking');
+    if (stored) {
+      setWorks(JSON.parse(stored));
+    }
+    
+    return () => {
+      window.removeEventListener('newWorkCreated', handleNewWork as EventListener);
+    };
+  }, []);
 
   const handleActivityImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,7 +199,8 @@ export default function TrackingPanel() {
       updateDate: new Date().toISOString().split('T')[0],
     };
 
-    setWorks(works.map(w => w.id === selectedWork.id ? updatedWork : w));
+    const updatedWorks = works.map(w => w.id === selectedWork.id ? updatedWork : w);
+    setWorks(updatedWorks);
     setSelectedWork(updatedWork);
     setNewActivity('');
     setActivityImage(null);
@@ -512,10 +561,33 @@ export default function TrackingPanel() {
                           updateDate: new Date().toISOString().split('T')[0],
                           document: newStatus === 'Terminada' && selectedFile ? selectedFile.name : selectedWork.document,
                         };
-                        setWorks(works.map(w => w.id === selectedWork.id ? updatedWork : w));
+                        const updatedWorks = works.map(w => w.id === selectedWork.id ? updatedWork : w);
+                        setWorks(updatedWorks);
                         setSelectedWork(updatedWork);
                         setIsUpdatingStatus(false);
                         setSelectedFile(null);
+
+                        // Si el trabajo se marca como "Terminada", actualizar el ticket correspondiente a "Finalizado"
+                        if (newStatus === 'Terminada' && selectedWork.orderNumber) {
+                          // Buscar el ticket por orderNumber y actualizarlo
+                          const storedTickets = localStorage.getItem('tickets');
+                          if (storedTickets) {
+                            const tickets = JSON.parse(storedTickets);
+                            const updatedTickets = tickets.map((ticket: any) => {
+                              if (ticket.orderNumber === selectedWork.orderNumber) {
+                                return {
+                                  ...ticket,
+                                  status: 'Finalizado',
+                                };
+                              }
+                              return ticket;
+                            });
+                            localStorage.setItem('tickets', JSON.stringify(updatedTickets));
+                            // Disparar evento para actualizar otros componentes
+                            window.dispatchEvent(new CustomEvent('ticketsUpdated', { detail: updatedTickets }));
+                            window.dispatchEvent(new CustomEvent('workCompleted', { detail: { orderNumber: selectedWork.orderNumber } }));
+                          }
+                        }
                       }}
                       className="flex-1 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors font-medium"
                     >

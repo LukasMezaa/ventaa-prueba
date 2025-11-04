@@ -1,20 +1,23 @@
 import { Activity, Clock, CheckCircle, XCircle, FileText, Eye, X, Calendar, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Ticket as TicketType, mockTickets } from '../lib/mockData';
+// import { mockTickets } from '../lib/mockData'; // Ocultado - descomentar si se necesita restaurar tickets mock
+import { Ticket as TicketType } from '../lib/mockData';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function TrazabilityPanel() {
   const { user } = useAuth();
   
-  // Cargar tickets desde localStorage o usar mockTickets
+  // Cargar tickets desde localStorage o usar array vacío
   const loadTickets = (): TicketType[] => {
     const stored = localStorage.getItem('tickets');
     if (stored) {
       return JSON.parse(stored);
     }
-    // Si no hay localStorage, inicializar con mockTickets
-    localStorage.setItem('tickets', JSON.stringify(mockTickets));
-    return mockTickets;
+    // Si no hay localStorage, inicializar con array vacío (mockTickets están ocultos)
+    // Para restaurar tickets mock, cambiar [] por mockTickets
+    const emptyTickets: TicketType[] = [];
+    localStorage.setItem('tickets', JSON.stringify(emptyTickets));
+    return emptyTickets;
   };
   
   const [tickets, setTickets] = useState<TicketType[]>(loadTickets());
@@ -59,6 +62,13 @@ export default function TrazabilityPanel() {
       textColor: 'text-red-800',
       description: 'Tu ticket ha sido rechazado',
     },
+    'Finalizado': {
+      color: 'text-blue-800',
+      icon: CheckCircle,
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-800',
+      description: 'Ticket finalizado. La visita se realizó y el problema fue resuelto',
+    },
   };
 
   const getStatusCounts = () => {
@@ -67,6 +77,7 @@ export default function TrazabilityPanel() {
       pendientes: ownerTickets.filter(t => t.status === 'Pendiente').length,
       aprobados: ownerTickets.filter(t => t.status === 'Aprobado').length,
       rechazados: ownerTickets.filter(t => t.status === 'Rechazado').length,
+      finalizados: ownerTickets.filter(t => t.status === 'Finalizado').length,
     };
   };
 
@@ -93,6 +104,8 @@ export default function TrazabilityPanel() {
         return 'Orden de trabajo en proceso';
       case 'Rechazado':
         return 'Ticket rechazado. Puedes crear un nuevo ticket si es necesario';
+      case 'Finalizado':
+        return 'Ticket finalizado. La visita se realizó y el problema fue resuelto exitosamente';
       default:
         return '';
     }
@@ -115,19 +128,28 @@ export default function TrazabilityPanel() {
       },
       { 
         label: ticket.status === 'Rechazado' ? 'Rechazado' : 'Aprobado', 
-        completed: ticket.status === 'Aprobado' || ticket.status === 'Rechazado',
+        completed: ticket.status === 'Aprobado' || ticket.status === 'Rechazado' || ticket.status === 'Finalizado',
         date: ticket.approvedDate || null,
         icon: ticket.status === 'Rechazado' ? XCircle : CheckCircle,
         isError: ticket.status === 'Rechazado'
       },
     ];
 
-    if (ticket.status === 'Aprobado' && ticket.orderNumber) {
+    if ((ticket.status === 'Aprobado' || ticket.status === 'Finalizado') && ticket.orderNumber) {
       steps.push({
         label: 'Orden de Trabajo',
         completed: true,
         date: ticket.approvedDate || null,
         icon: FileText
+      });
+    }
+
+    if (ticket.status === 'Finalizado') {
+      steps.push({
+        label: 'Ticket Finalizado',
+        completed: true,
+        date: ticket.approvedDate || null,
+        icon: CheckCircle2
       });
     }
 
@@ -137,7 +159,7 @@ export default function TrazabilityPanel() {
   return (
     <div className="space-y-4">
       {/* Estadísticas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white rounded-lg p-3 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -175,6 +197,16 @@ export default function TrazabilityPanel() {
               <p className="text-xl font-bold text-red-600">{stats.rechazados}</p>
             </div>
             <XCircle className="w-6 h-6 text-red-500 opacity-20" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-3 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-600 mb-0.5">Finalizados</p>
+              <p className="text-xl font-bold text-blue-600">{stats.finalizados}</p>
+            </div>
+            <CheckCircle className="w-6 h-6 text-blue-500 opacity-20" />
           </div>
         </div>
       </div>
