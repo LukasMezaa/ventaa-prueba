@@ -21,6 +21,7 @@ export type Ticket = {
   ticketNumber: string;
   ownerName: string;
   ownerEmail: string;
+  ownerRut?: string; // RUT del propietario
   phone: string;
   tower: string;
   municipalNumber: string;
@@ -34,6 +35,7 @@ export type Ticket = {
   orderNumber: string | null;
   preferredShift?: string; // 'AM' o 'PM' - Jornada de preferencia
   photo?: string; // Base64 string de la foto adjunta
+  assignedTechnician?: string; // RUT del técnico asignado
 };
 
 export type Order = {
@@ -66,6 +68,7 @@ export type User = {
   role: 'admin' | 'propietario' | 'tecnico';
   password: string;
   lastLogin: string;
+  rut?: string; // RUT del usuario (para propietarios)
 };
 
 // Mock users

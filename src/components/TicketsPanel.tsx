@@ -13,6 +13,7 @@ export default function TicketsPanel() {
   const [appointmentDate, setAppointmentDate] = useState<string>('');
   const [appointmentShift, setAppointmentShift] = useState<string>('');
   const [appointmentTime, setAppointmentTime] = useState<string>('');
+  const [selectedTechnician, setSelectedTechnician] = useState<string>('');
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
@@ -44,6 +45,7 @@ export default function TicketsPanel() {
     // Campos para administrador (creación manual)
     ownerName: '',
     ownerEmail: '',
+    ownerRut: '',
     phone: '',
     tower: '',
     municipalNumber: '',
@@ -51,9 +53,63 @@ export default function TicketsPanel() {
 
   const isAdmin = user?.role === 'admin';
   const isTecnico = user?.role === 'tecnico';
+  
+  // Mapeo de técnicos a sus áreas de especialización
+  const technicianAreas: { [key: string]: string[] } = {
+    '11111111-1': ['Carpintería'], // Técnico Carpintería
+    '22222222-2': ['Gasfitería'], // Técnico Gasfitería
+  };
+  
+  // Obtener área del técnico actual
+  const getTechnicianArea = (): string[] | null => {
+    if (isTecnico && user?.rut) {
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      const userRut = normalizeRut(user.rut);
+      return technicianAreas[userRut] || null;
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar campos requeridos
+    if (!formData.description.trim()) {
+      alert('Por favor, ingresa una descripción del problema');
+      return;
+    }
+    
+    if (!formData.area) {
+      alert('Por favor, selecciona un área');
+      return;
+    }
+    
+    if (!formData.preferredShift) {
+      alert('Por favor, selecciona una jornada de preferencia');
+      return;
+    }
+    
+    // Validar campos requeridos para administrador
+    if (isAdmin) {
+      if (!formData.ownerName.trim()) {
+        alert('Por favor, ingresa el nombre del propietario');
+        return;
+      }
+      if (!formData.phone.trim()) {
+        alert('Por favor, ingresa el teléfono');
+        return;
+      }
+      if (!formData.tower.trim()) {
+        alert('Por favor, ingresa la torre');
+        return;
+      }
+      if (!formData.municipalNumber.trim()) {
+        alert('Por favor, ingresa el número municipal');
+        return;
+      }
+    }
     
     // Convertir foto a base64 si existe
     let photoBase64: string | undefined = undefined;
@@ -65,21 +121,31 @@ export default function TicketsPanel() {
     let ownerInfo = {
       name: user?.name || 'Propietario',
       email: user?.email || '',
+      rut: user?.rut || '',
       phone: '+56912345678',
       tower: 'Torre A',
       municipalNumber: '101',
     };
     
-    if (!isAdmin && user?.email) {
-      // Buscar información del propietario por email
-      const propertyOwner = mockPropertyOwners.find(po => 
-        po.email && po.email.toLowerCase() === user.email.toLowerCase()
-      );
+    if (!isAdmin && user?.rut) {
+      // Función para normalizar RUT (eliminar puntos, espacios y convertir a minúsculas)
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      
+      const normalizedUserRut = normalizeRut(user.rut);
+      
+      // Buscar información del propietario por RUT
+      const propertyOwner = mockPropertyOwners.find(po => {
+        const normalizedOwnerRut = normalizeRut(po.rut);
+        return normalizedOwnerRut === normalizedUserRut;
+      });
       
       if (propertyOwner) {
         ownerInfo = {
           name: propertyOwner.name,
           email: propertyOwner.email || user.email,
+          rut: propertyOwner.rut,
           phone: propertyOwner.phone,
           tower: propertyOwner.tower,
           municipalNumber: propertyOwner.municipal_number,
@@ -92,10 +158,11 @@ export default function TicketsPanel() {
       ticketNumber: `TKT-2024-${String(tickets.length + 1).padStart(3, '0')}`,
       ownerName: isAdmin ? formData.ownerName : ownerInfo.name,
       ownerEmail: isAdmin ? formData.ownerEmail : ownerInfo.email,
+      ownerRut: isAdmin ? formData.ownerRut : ownerInfo.rut,
       phone: isAdmin ? formData.phone : ownerInfo.phone,
       tower: isAdmin ? formData.tower : ownerInfo.tower,
       municipalNumber: isAdmin ? formData.municipalNumber : ownerInfo.municipalNumber,
-      description: formData.description,
+      description: formData.description.trim(),
       area: formData.area,
       scheduledDate: null, // Ya no se usa fecha/hora deseada
       status: 'Pendiente',
@@ -107,29 +174,35 @@ export default function TicketsPanel() {
       photo: photoBase64, // Guardar foto en base64
     };
     
-    setTickets([...tickets, newTicket]);
-    setShowModal(false);
-    setFormData({ 
-      description: '', 
-      area: '', 
-      preferredShift: '',
-      ownerName: '',
-      ownerEmail: '',
-      phone: '',
-      tower: '',
-      municipalNumber: '',
-    });
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
-    
-    // Mostrar notificación de éxito
-    setCreatedTicketNumber(newTicket.ticketNumber);
-    setShowSuccessNotification(true);
-    
-    // Ocultar notificación después de 5 segundos
-    setTimeout(() => {
-      setShowSuccessNotification(false);
-    }, 5000);
+    try {
+      setTickets([...tickets, newTicket]);
+      setShowModal(false);
+      setFormData({ 
+        description: '', 
+        area: '', 
+        preferredShift: '',
+        ownerName: '',
+        ownerEmail: '',
+        ownerRut: '',
+        phone: '',
+        tower: '',
+        municipalNumber: '',
+      });
+      setSelectedPhoto(null);
+      setPhotoPreview(null);
+      
+      // Mostrar notificación de éxito
+      setCreatedTicketNumber(newTicket.ticketNumber);
+      setShowSuccessNotification(true);
+      
+      // Ocultar notificación después de 5 segundos
+      setTimeout(() => {
+        setShowSuccessNotification(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error al crear el ticket:', error);
+      alert('Hubo un error al crear el ticket. Por favor intenta de nuevo.');
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +239,11 @@ export default function TicketsPanel() {
       return;
     }
 
+    if (approve && !selectedTechnician) {
+      alert('Debes seleccionar un técnico antes de aprobar');
+      return;
+    }
+
     let approvedTicket: TicketType | null = null;
 
     const updatedTickets = tickets.map(ticket => {
@@ -176,6 +254,7 @@ export default function TicketsPanel() {
           approvedBy: approve ? user?.email || '' : null,
           approvedDate: approve ? new Date().toISOString() : null,
           orderNumber: approve ? `ORD-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}` : null,
+          assignedTechnician: approve ? selectedTechnician : undefined,
         };
         
         // Si se aprueba, guardar la fecha y hora de cita acordada
@@ -206,6 +285,7 @@ export default function TicketsPanel() {
           workDetails: [] as Array<{ text: string; image?: string; date: string }>,
           startDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
           updateDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          assignedTechnician: ticket.assignedTechnician,
         };
 
         // Guardar en localStorage
@@ -226,6 +306,7 @@ export default function TicketsPanel() {
     setAppointmentDate('');
     setAppointmentShift('');
     setAppointmentTime('');
+    setSelectedTechnician('');
   };
 
   const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string }> = {
@@ -255,7 +336,51 @@ export default function TicketsPanel() {
     },
   };
 
-  const filteredTickets = isAdmin || isTecnico ? tickets : tickets.filter(t => t.ownerEmail === user?.email);
+  // Filtrar tickets según el rol
+  const filteredTickets = (() => {
+    if (isAdmin) {
+      // Admin ve todos los tickets
+      return tickets;
+    }
+    
+    if (isTecnico && user?.rut) {
+      // Técnico solo ve tickets asignados a él y de su área
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      const userRut = normalizeRut(user.rut);
+      const technicianArea = getTechnicianArea();
+      
+      return tickets.filter(t => {
+        // Verificar que el ticket tenga técnico asignado
+        if (!t.assignedTechnician) return false;
+        
+        // Verificar que el técnico asignado sea el mismo que el logueado
+        const ticketRut = normalizeRut(t.assignedTechnician);
+        if (ticketRut !== userRut) return false;
+        
+        // Verificar que el área del ticket coincida con la especialidad del técnico
+        if (technicianArea && !technicianArea.includes(t.area)) {
+          return false;
+        }
+        
+        return true;
+      });
+    }
+    
+    // Propietario solo ve sus tickets (por RUT o email)
+    return tickets.filter(t => {
+      // Comparar por RUT si está disponible (más confiable)
+      if (user?.rut && t.ownerRut) {
+        const normalizeRut = (rut: string) => {
+          return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+        };
+        return normalizeRut(t.ownerRut) === normalizeRut(user.rut);
+      }
+      // Fallback: comparar por email si no hay RUT
+      return t.ownerEmail === user?.email;
+    });
+  })();
 
   return (
     <div className="space-y-6">
@@ -357,6 +482,7 @@ export default function TicketsPanel() {
                           setAppointmentDate('');
                           setAppointmentShift(ticket.preferredShift || '');
                           setAppointmentTime('');
+                          setSelectedTechnician('');
                         }}
                         className="px-3 py-1 text-sm bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-1"
                       >
@@ -393,6 +519,7 @@ export default function TicketsPanel() {
             preferredShift: '',
             ownerName: '',
             ownerEmail: '',
+            ownerRut: '',
             phone: '',
             tower: '',
             municipalNumber: '',
@@ -413,6 +540,7 @@ export default function TicketsPanel() {
                     preferredShift: '',
                     ownerName: '',
                     ownerEmail: '',
+                    ownerRut: '',
                     phone: '',
                     tower: '',
                     municipalNumber: '',
@@ -443,6 +571,18 @@ export default function TicketsPanel() {
                           required
                         />
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">RUT del Propietario</label>
+                        <input
+                          type="text"
+                          value={formData.ownerRut}
+                          onChange={(e) => setFormData({ ...formData, ownerRut: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent"
+                          placeholder="Ej: 12345678-9 (opcional)"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email del Propietario</label>
                         <input
@@ -562,7 +702,7 @@ export default function TicketsPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Jornada de Preferencia *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jornada Visita Tecnico</label>
                   <div className="flex gap-3 mt-2">
                     <button
                       type="button"
@@ -607,6 +747,7 @@ export default function TicketsPanel() {
                       preferredShift: '',
                       ownerName: '',
                       ownerEmail: '',
+                      ownerRut: '',
                       phone: '',
                       tower: '',
                       municipalNumber: '',
@@ -647,6 +788,7 @@ export default function TicketsPanel() {
                   setAppointmentDate('');
                   setAppointmentShift('');
                   setAppointmentTime('');
+                  setSelectedTechnician('');
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -662,6 +804,10 @@ export default function TicketsPanel() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-0.5">Nombre</label>
                     <p className="text-sm text-gray-900 font-medium">{selectedTicket.ownerName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-0.5">RUT</label>
+                    <p className="text-sm text-gray-900">{selectedTicket.ownerRut || 'No disponible'}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-0.5">Email</label>
@@ -805,12 +951,61 @@ export default function TicketsPanel() {
                     </div>
                   </div>
                   
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Asignar Técnico *</label>
+                    <select
+                      value={selectedTechnician}
+                      onChange={(e) => setSelectedTechnician(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none"
+                      required
+                    >
+                      <option value="">Seleccionar técnico...</option>
+                      {(() => {
+                        // Mapeo de áreas a técnicos
+                        const areaToTechnician: { [key: string]: { rut: string; name: string } } = {
+                          'Carpintería': { rut: '11111111-1', name: 'Técnico (Carpintería)' },
+                          'Gasfitería': { rut: '22222222-2', name: 'Técnico (Gasfitería)' },
+                        };
+                        
+                        const technician = selectedTicket.area ? areaToTechnician[selectedTicket.area] : null;
+                        
+                        if (technician) {
+                          // Si hay un técnico específico para esta área, mostrarlo primero
+                          return (
+                            <>
+                              <option value={technician.rut}>{technician.name}</option>
+                              {selectedTicket.area !== 'Carpintería' && selectedTicket.area !== 'Gasfitería' && (
+                                <>
+                                  <option value="11111111-1">Técnico (Carpintería)</option>
+                                  <option value="22222222-2">Técnico (Gasfitería)</option>
+                                </>
+                              )}
+                            </>
+                          );
+                        }
+                        
+                        // Si no hay mapeo específico, mostrar todos
+                        return (
+                          <>
+                            <option value="11111111-1">Técnico (Carpintería)</option>
+                            <option value="22222222-2">Técnico (Gasfitería)</option>
+                          </>
+                        );
+                      })()}
+                    </select>
+                    {selectedTicket.area && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Área del ticket: {selectedTicket.area}
+                      </p>
+                    )}
+                  </div>
+                  
                   <div className="pt-2">
                     <p className="text-sm font-medium text-gray-700 mb-3">Acción del Administrador:</p>
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleApprove(selectedTicket.id, true)}
-                        disabled={!appointmentDate || !appointmentShift || !appointmentTime}
+                        disabled={!appointmentDate || !appointmentShift || !appointmentTime || !selectedTechnician}
                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
                         Aprobar y Crear Orden

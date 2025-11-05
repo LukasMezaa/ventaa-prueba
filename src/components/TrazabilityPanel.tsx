@@ -37,8 +37,18 @@ export default function TrazabilityPanel() {
     };
   }, []);
 
-  // Filtrar solo los tickets del propietario actual
-  const ownerTickets = tickets.filter(t => t.ownerEmail === user?.email);
+  // Filtrar solo los tickets del propietario actual (por RUT o email)
+  const ownerTickets = tickets.filter(t => {
+    // Comparar por RUT si está disponible (más confiable)
+    if (user?.rut && t.ownerRut) {
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      return normalizeRut(t.ownerRut) === normalizeRut(user.rut);
+    }
+    // Fallback: comparar por email si no hay RUT
+    return t.ownerEmail === user?.email;
+  });
 
   const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string; description: string }> = {
     'Pendiente': {
@@ -99,7 +109,18 @@ export default function TrazabilityPanel() {
         return 'Esperando revisión del administrador';
       case 'Aprobado':
         if (ticket.scheduledDate) {
-          return `Visita programada para ${new Date(ticket.scheduledDate).toLocaleDateString('es-CL')}`;
+          const visitDate = new Date(ticket.scheduledDate);
+          const formattedDate = visitDate.toLocaleDateString('es-CL', {
+            day: 'numeric',
+            month: 'numeric',
+            year: 'numeric'
+          });
+          const formattedTime = visitDate.toLocaleTimeString('es-CL', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+          return `Aprobado visita programada para ${formattedDate} a las ${formattedTime}`;
         }
         return 'Orden de trabajo en proceso';
       case 'Rechazado':

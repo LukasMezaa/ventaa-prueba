@@ -4,8 +4,7 @@ import { User } from '../lib/mockData';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signInWithRut: (rut: string, password: string) => Promise<void>;
+  signIn: (rut: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -23,65 +22,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (rut: string, password: string) => {
     // Simular delay de red
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    let mockUser: User | null = null;
-    
-    // Validar credenciales específicas
-    if (email === 'admin@admin.com' && password === 'admin') {
-      mockUser = {
-        id: '1',
-        email,
-        name: 'Administrador',
-        role: 'admin',
-        password: '',
-        lastLogin: new Date().toISOString(),
-      };
-    } else if (email === 'propietario@propietario.com' && password === 'propietario') {
-      mockUser = {
-        id: '2',
-        email,
-        name: 'Propietario',
-        role: 'propietario',
-        password: '',
-        lastLogin: new Date().toISOString(),
-      };
-    } else {
-      throw new Error('Credenciales inválidas. Use admin@admin.com / admin o propietario@propietario.com / propietario');
-    }
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-  };
-
-  const signInWithRut = async (rut: string, password: string) => {
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Usuarios técnicos temporales (RUT y contraseña del sistema)
-    const technicians: { [key: string]: { password: string; name: string } } = {
-      '12345678-9': { password: 'tecnico123', name: 'Técnico Juan' },
-      '98765432-1': { password: 'tecnico456', name: 'Técnico María' },
+    // Usuarios por RUT y contraseña (todos los roles)
+    // Nota: El RUT del propietario debe coincidir con uno en mockPropertyOwners
+    const users: { [key: string]: { password: string; name: string; role: 'admin' | 'propietario' | 'tecnico' } } = {
+      '12345678-9': { password: 'admin123', name: 'Administrador', role: 'admin' },
+      '20.925.879-k': { password: 'propietario123', name: 'Propietario', role: 'propietario' },
+      '20925879-k': { password: 'propietario123', name: 'Propietario', role: 'propietario' }, // Formato sin puntos
+      '11111111-1': { password: 'tecnico123', name: 'Técnico (Carpintería)', role: 'tecnico' },
+      '22222222-2': { password: 'tecnico123', name: 'Técnico (Gasfitería)', role: 'tecnico' },
     };
     
-    const tech = technicians[rut];
+    const userData = users[rut];
     
-    if (tech && tech.password === password) {
+    if (userData && userData.password === password) {
       const mockUser: User = {
-        id: `tech-${rut}`,
-        email: `${rut}@temporal.com`,
-        name: tech.name,
-        role: 'tecnico',
+        id: `user-${rut}`,
+        email: `${rut}@sistema.com`,
+        name: userData.name,
+        role: userData.role,
         password: '',
         lastLogin: new Date().toISOString(),
+        rut: rut, // Guardar el RUT para búsquedas posteriores
       };
       
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
     } else {
-      throw new Error('RUT o contraseña inválidos. Use 12345678-9 / tecnico123 o 98765432-1 / tecnico456');
+      throw new Error('RUT o contraseña inválidos. Verifique las credenciales e intente nuevamente.');
     }
   };
 
@@ -94,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signInWithRut, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

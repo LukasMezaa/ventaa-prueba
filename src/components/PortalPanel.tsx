@@ -45,10 +45,19 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
   
   // Calcular tickets activos del propietario (Pendientes y Aprobados)
   const activeTicketsCount = isPropietario 
-    ? tickets.filter(t => 
-        t.ownerEmail === user?.email && 
-        (t.status === 'Pendiente' || t.status === 'Aprobado')
-      ).length
+    ? tickets.filter(t => {
+        // Comparar por RUT si está disponible (más confiable)
+        if (user?.rut && t.ownerRut) {
+          const normalizeRut = (rut: string) => {
+            return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+          };
+          return normalizeRut(t.ownerRut) === normalizeRut(user.rut) && 
+                 (t.status === 'Pendiente' || t.status === 'Aprobado');
+        }
+        // Fallback: comparar por email si no hay RUT
+        return t.ownerEmail === user?.email && 
+               (t.status === 'Pendiente' || t.status === 'Aprobado');
+      }).length
     : 2; // Para admin, mantener el valor hardcodeado
 
   const menuOptions = [

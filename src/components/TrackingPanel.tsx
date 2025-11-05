@@ -19,6 +19,9 @@ interface WorkTracking {
   startDate: string;
   updateDate: string;
   document?: string;
+  statusChangedToEjecucion?: string; // Fecha y hora cuando cambió a "En Ejecución"
+  statusChangedToTerminada?: string; // Fecha y hora cuando cambió a "Terminada"
+  assignedTechnician?: string; // RUT del técnico asignado
 }
 
 // OCULTADO: Estos trabajos mock se pueden restaurar comentando las siguientes líneas y descomentando el array
@@ -104,7 +107,26 @@ const statusConfig: Record<string, { color: string; icon: any; bgColor: string }
 export default function TrackingPanel() {
   const { user } = useAuth();
   const isTecnico = user?.role === 'tecnico';
+  const isAdmin = user?.role === 'admin';
   const [selectedWork, setSelectedWork] = useState<WorkTracking | null>(null);
+  
+  // Mapeo de técnicos a sus áreas de especialización
+  const technicianAreas: { [key: string]: string[] } = {
+    '11111111-1': ['Carpintería'], // Técnico Carpintería
+    '22222222-2': ['Gasfitería'], // Técnico Gasfitería
+  };
+  
+  // Obtener área del técnico actual
+  const getTechnicianArea = (): string[] | null => {
+    if (isTecnico && user?.rut) {
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      const userRut = normalizeRut(user.rut);
+      return technicianAreas[userRut] || null;
+    }
+    return null;
+  };
   
   // Cargar trabajos desde localStorage o usar array vacío
   const loadWorks = (): WorkTracking[] => {
@@ -126,11 +148,31 @@ export default function TrackingPanel() {
   const [newActivity, setNewActivity] = useState<string>('');
   const [activityImage, setActivityImage] = useState<File | null>(null);
   const [activityImagePreview, setActivityImagePreview] = useState<string | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   // Sincronizar con localStorage cuando se actualiza el estado
   useEffect(() => {
     localStorage.setItem('workTracking', JSON.stringify(works));
   }, [works]);
+
+  // Cerrar menú de estado al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showStatusMenu) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.status-menu-container')) {
+          setShowStatusMenu(false);
+        }
+      }
+    };
+
+    if (showStatusMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showStatusMenu]);
 
   // Escuchar eventos de creación de nuevos trabajos
   useEffect(() => {
@@ -210,55 +252,85 @@ export default function TrackingPanel() {
   return (
     <div className="space-y-6">
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Pendientes</p>
-              <p className="text-3xl font-bold text-yellow-600">
-                {works.filter((w) => w.status === 'Pendiente de Visita').length}
-              </p>
+      {(() => {
+        // Filtrar trabajos según el rol
+        const filteredWorks = works.filter(work => {
+          if (isTecnico && user?.rut) {
+            // Si el trabajo no tiene técnico asignado, no mostrarlo a técnicos
+            if (!work.assignedTechnician) return false;
+            
+            const normalizeRut = (rut: string) => {
+              return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+            };
+            const userRut = normalizeRut(user.rut);
+            const workRut = work.assignedTechnician ? normalizeRut(work.assignedTechnician) : null;
+            
+            // Verificar que el técnico esté asignado
+            if (workRut !== userRut) return false;
+            
+            // Verificar que el área del trabajo coincida con la especialidad del técnico
+            const technicianArea = getTechnicianArea();
+            if (technicianArea && !technicianArea.includes(work.area)) {
+              return false;
+            }
+            
+            return true;
+          }
+          return true;
+        });
+        
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Pendientes</p>
+                  <p className="text-3xl font-bold text-yellow-600">
+                    {filteredWorks.filter((w) => w.status === 'Pendiente de Visita').length}
+                  </p>
+                </div>
+                <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
+              </div>
             </div>
-            <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">En Ejecución</p>
-              <p className="text-3xl font-bold text-blue-600">
-                {works.filter((w) => w.status === 'En Ejecución').length}
-              </p>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">En Ejecución</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {filteredWorks.filter((w) => w.status === 'En Ejecución').length}
+                  </p>
+                </div>
+                <Wrench className="w-10 h-10 text-blue-500 opacity-20" />
+              </div>
             </div>
-            <Wrench className="w-10 h-10 text-blue-500 opacity-20" />
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Terminadas</p>
-              <p className="text-3xl font-bold text-green-600">
-                {works.filter((w) => w.status === 'Terminada').length}
-              </p>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Terminadas</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {filteredWorks.filter((w) => w.status === 'Terminada').length}
+                  </p>
+                </div>
+                <CheckCircle className="w-10 h-10 text-green-500 opacity-20" />
+              </div>
             </div>
-            <CheckCircle className="w-10 h-10 text-green-500 opacity-20" />
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">No Aplica</p>
-              <p className="text-3xl font-bold text-gray-600">
-                {works.filter((w) => w.status === 'No Aplica').length}
-              </p>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Total</p>
+                  <p className="text-3xl font-bold text-gray-800">
+                    {filteredWorks.length}
+                  </p>
+                </div>
+                <FileText className="w-10 h-10 text-gray-500 opacity-20" />
+              </div>
             </div>
-            <XCircle className="w-10 h-10 text-gray-500 opacity-20" />
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Lista de Trabajos */}
       <div className="bg-white rounded-xl border border-gray-200">
@@ -280,7 +352,32 @@ export default function TrackingPanel() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {works.map((work) => {
+              {works.filter(work => {
+                // Si es técnico, solo mostrar trabajos asignados a él y de su área
+                if (isTecnico && user?.rut) {
+                  // Si el trabajo no tiene técnico asignado, no mostrarlo a técnicos
+                  if (!work.assignedTechnician) return false;
+                  
+                  const normalizeRut = (rut: string) => {
+                    return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+                  };
+                  const userRut = normalizeRut(user.rut);
+                  const workRut = work.assignedTechnician ? normalizeRut(work.assignedTechnician) : null;
+                  
+                  // Verificar que el técnico esté asignado
+                  if (workRut !== userRut) return false;
+                  
+                  // Verificar que el área del trabajo coincida con la especialidad del técnico
+                  const technicianArea = getTechnicianArea();
+                  if (technicianArea && !technicianArea.includes(work.area)) {
+                    return false;
+                  }
+                  
+                  return true;
+                }
+                // Si es admin, mostrar todos (incluyendo los sin técnico asignado)
+                return true;
+              }).map((work) => {
                 const config = statusConfig[work.status];
                 const Icon = config.icon;
                 return (
@@ -337,6 +434,7 @@ export default function TrackingPanel() {
                   setNewStatus('');
                   setSelectedFile(null);
                   setNewActivity('');
+                  setShowStatusMenu(false);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -359,7 +457,7 @@ export default function TrackingPanel() {
                   <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
                   <p className="text-gray-900">{selectedWork.area}</p>
                 </div>
-                <div>
+                <div className="relative status-menu-container">
                   <label className="block text-sm font-medium text-gray-600 mb-1">Estado</label>
                   {isUpdatingStatus ? (
                     <select
@@ -374,16 +472,47 @@ export default function TrackingPanel() {
                       <option value="No Aplica">No Aplica</option>
                     </select>
                   ) : (
-                    (() => {
-                      const config = statusConfig[selectedWork.status];
-                      const Icon = config.icon;
-                      return (
-                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${config.bgColor} ${config.color}`}>
-                          <Icon className="w-4 h-4" />
-                          {selectedWork.status}
-                        </span>
-                      );
-                    })()
+                    <div className="relative">
+                      {(() => {
+                        const config = statusConfig[selectedWork.status];
+                        const Icon = config.icon;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => isTecnico && setShowStatusMenu(!showStatusMenu)}
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${config.bgColor} ${config.color} ${isTecnico ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {selectedWork.status}
+                          </button>
+                        );
+                      })()}
+                      
+                      {/* Menú desplegable de estados */}
+                      {showStatusMenu && isTecnico && (
+                        <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-2 flex flex-col gap-2">
+                          {Object.entries(statusConfig).map(([status, config]) => {
+                            if (status === selectedWork.status) return null;
+                            const StatusIcon = config.icon;
+                            return (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() => {
+                                  setNewStatus(status);
+                                  setIsUpdatingStatus(true);
+                                  setShowStatusMenu(false);
+                                }}
+                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${config.bgColor} ${config.color} hover:opacity-80 transition-opacity w-fit`}
+                              >
+                                <StatusIcon className="w-4 h-4" />
+                                {status}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -537,6 +666,18 @@ export default function TrackingPanel() {
                   <label className="block text-sm font-medium text-gray-600 mb-1">Última Actualización</label>
                   <p className="text-gray-900">{new Date(selectedWork.updateDate).toLocaleDateString('es-CL')}</p>
                 </div>
+                {selectedWork.statusChangedToEjecucion && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Cambió a "En Ejecución"</label>
+                    <p className="text-gray-900">{new Date(selectedWork.statusChangedToEjecucion).toLocaleString('es-CL')}</p>
+                  </div>
+                )}
+                {selectedWork.statusChangedToTerminada && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Cambió a "Terminada"</label>
+                    <p className="text-gray-900">{new Date(selectedWork.statusChangedToTerminada).toLocaleString('es-CL')}</p>
+                  </div>
+                )}
               </div>
 
               {/* Botones de Acción */}
@@ -548,6 +689,7 @@ export default function TrackingPanel() {
                         setIsUpdatingStatus(false);
                         setNewStatus(selectedWork.status);
                         setSelectedFile(null);
+                        setShowStatusMenu(false);
                       }}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
@@ -555,17 +697,27 @@ export default function TrackingPanel() {
                     </button>
                     <button
                       onClick={() => {
-                        const updatedWork = {
+                        const now = new Date().toISOString();
+                        const updatedWork: WorkTracking = {
                           ...selectedWork,
                           status: newStatus,
                           updateDate: new Date().toISOString().split('T')[0],
                           document: newStatus === 'Terminada' && selectedFile ? selectedFile.name : selectedWork.document,
+                          // Guardar fecha cuando cambia a "En Ejecución"
+                          statusChangedToEjecucion: newStatus === 'En Ejecución' && selectedWork.status !== 'En Ejecución' 
+                            ? now 
+                            : selectedWork.statusChangedToEjecucion,
+                          // Guardar fecha cuando cambia a "Terminada"
+                          statusChangedToTerminada: newStatus === 'Terminada' && selectedWork.status !== 'Terminada' 
+                            ? now 
+                            : selectedWork.statusChangedToTerminada,
                         };
                         const updatedWorks = works.map(w => w.id === selectedWork.id ? updatedWork : w);
                         setWorks(updatedWorks);
                         setSelectedWork(updatedWork);
                         setIsUpdatingStatus(false);
                         setSelectedFile(null);
+                        setShowStatusMenu(false);
 
                         // Si el trabajo se marca como "Terminada", actualizar el ticket correspondiente a "Finalizado"
                         if (newStatus === 'Terminada' && selectedWork.orderNumber) {
@@ -605,20 +757,11 @@ export default function TrackingPanel() {
                         setNewActivity('');
                         setActivityImage(null);
                         setActivityImagePreview(null);
+                        setShowStatusMenu(false);
                       }}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Cerrar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsUpdatingStatus(true);
-                        setNewStatus(selectedWork.status);
-                        setSelectedFile(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors font-medium"
-                    >
-                      Actualizar Estado
                     </button>
                   </>
                 )}
