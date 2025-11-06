@@ -117,6 +117,10 @@ export default function Login() {
                 <span className="text-gray-600">Técnico (Gasfitería):</span>
                 <span className="font-mono text-gray-800">22222222-2 / tecnico123</span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Técnico General:</span>
+                <span className="font-mono text-gray-800">33333333-3 / tecnico123</span>
+              </div>
             </div>
           </div>
         </div>

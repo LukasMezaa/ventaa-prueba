@@ -114,6 +114,19 @@ export default function TrackingPanel() {
   const technicianAreas: { [key: string]: string[] } = {
     '11111111-1': ['Carpintería'], // Técnico Carpintería
     '22222222-2': ['Gasfitería'], // Técnico Gasfitería
+    '33333333-3': [], // Técnico General - sin restricciones de área
+  };
+  
+  // Verificar si es técnico general
+  const isGeneralTechnician = (): boolean => {
+    if (isTecnico && user?.rut) {
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      const userRut = normalizeRut(user.rut);
+      return userRut === '33333333-3';
+    }
+    return false;
   };
   
   // Obtener área del técnico actual
@@ -123,6 +136,10 @@ export default function TrackingPanel() {
         return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
       };
       const userRut = normalizeRut(user.rut);
+      // Si es técnico general, retornar null para que vea todos los trabajos
+      if (userRut === '33333333-3') {
+        return null;
+      }
       return technicianAreas[userRut] || null;
     }
     return null;
@@ -253,7 +270,7 @@ export default function TrackingPanel() {
     <div className="space-y-6">
       {/* Estadísticas */}
       {(() => {
-        // Filtrar trabajos según el rol
+        // Filtrar trabajos según el rol y ordenarlos por fecha de inicio (más reciente primero)
         const filteredWorks = works.filter(work => {
           if (isTecnico && user?.rut) {
             // Si el trabajo no tiene técnico asignado, no mostrarlo a técnicos
@@ -268,6 +285,12 @@ export default function TrackingPanel() {
             // Verificar que el técnico esté asignado
             if (workRut !== userRut) return false;
             
+            // Si es técnico general, no filtrar por área (ve todos los trabajos asignados a él)
+            const isGeneral = isGeneralTechnician();
+            if (isGeneral) {
+              return true;
+            }
+            
             // Verificar que el área del trabajo coincida con la especialidad del técnico
             const technicianArea = getTechnicianArea();
             if (technicianArea && !technicianArea.includes(work.area)) {
@@ -277,6 +300,11 @@ export default function TrackingPanel() {
             return true;
           }
           return true;
+        }).sort((a, b) => {
+          // Ordenar por fecha de inicio descendente (más reciente primero)
+          const dateA = new Date(a.startDate).getTime();
+          const dateB = new Date(b.startDate).getTime();
+          return dateB - dateA; // Orden descendente
         });
         
         return (
@@ -353,7 +381,7 @@ export default function TrackingPanel() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {works.filter(work => {
-                // Si es técnico, solo mostrar trabajos asignados a él y de su área
+                // Si es técnico, solo mostrar trabajos asignados a él y de su área (excepto técnico general)
                 if (isTecnico && user?.rut) {
                   // Si el trabajo no tiene técnico asignado, no mostrarlo a técnicos
                   if (!work.assignedTechnician) return false;
@@ -367,6 +395,12 @@ export default function TrackingPanel() {
                   // Verificar que el técnico esté asignado
                   if (workRut !== userRut) return false;
                   
+                  // Si es técnico general, no filtrar por área (ve todos los trabajos asignados a él)
+                  const isGeneral = isGeneralTechnician();
+                  if (isGeneral) {
+                    return true;
+                  }
+                  
                   // Verificar que el área del trabajo coincida con la especialidad del técnico
                   const technicianArea = getTechnicianArea();
                   if (technicianArea && !technicianArea.includes(work.area)) {
@@ -377,6 +411,11 @@ export default function TrackingPanel() {
                 }
                 // Si es admin, mostrar todos (incluyendo los sin técnico asignado)
                 return true;
+              }).sort((a, b) => {
+                // Ordenar por fecha de inicio descendente (más reciente primero)
+                const dateA = new Date(a.startDate).getTime();
+                const dateB = new Date(b.startDate).getTime();
+                return dateB - dateA; // Orden descendente
               }).map((work) => {
                 const config = statusConfig[work.status];
                 const Icon = config.icon;

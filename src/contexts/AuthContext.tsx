@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       '20925879-k': { password: 'propietario123', name: 'Propietario', role: 'propietario' }, // Formato sin puntos
       '11111111-1': { password: 'tecnico123', name: 'Técnico (Carpintería)', role: 'tecnico' },
       '22222222-2': { password: 'tecnico123', name: 'Técnico (Gasfitería)', role: 'tecnico' },
+      '33333333-3': { password: 'tecnico123', name: 'Técnico General', role: 'tecnico' },
     };
     
     const userData = users[rut];

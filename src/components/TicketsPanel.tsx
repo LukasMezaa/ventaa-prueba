@@ -14,6 +14,7 @@ export default function TicketsPanel() {
   const [appointmentShift, setAppointmentShift] = useState<string>('');
   const [appointmentTime, setAppointmentTime] = useState<string>('');
   const [selectedTechnician, setSelectedTechnician] = useState<string>('');
+  const [editableArea, setEditableArea] = useState<string>(''); // Área editable por admin
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
@@ -95,6 +96,19 @@ export default function TicketsPanel() {
   const technicianAreas: { [key: string]: string[] } = {
     '11111111-1': ['Carpintería'], // Técnico Carpintería
     '22222222-2': ['Gasfitería'], // Técnico Gasfitería
+    '33333333-3': [], // Técnico General - sin restricciones de área (array vacío significa todas las áreas)
+  };
+  
+  // Verificar si es técnico general
+  const isGeneralTechnician = (): boolean => {
+    if (isTecnico && user?.rut) {
+      const normalizeRut = (rut: string) => {
+        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+      };
+      const userRut = normalizeRut(user.rut);
+      return userRut === '33333333-3';
+    }
+    return false;
   };
   
   // Obtener área del técnico actual
@@ -104,6 +118,10 @@ export default function TicketsPanel() {
         return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
       };
       const userRut = normalizeRut(user.rut);
+      // Si es técnico general, retornar null para que vea todos los tickets
+      if (userRut === '33333333-3') {
+        return null;
+      }
       return technicianAreas[userRut] || null;
     }
     return null;
@@ -276,6 +294,11 @@ export default function TicketsPanel() {
       return;
     }
 
+    if (approve && !editableArea) {
+      alert('Debes seleccionar un área antes de aprobar');
+      return;
+    }
+
     if (approve && !selectedTechnician) {
       alert('Debes seleccionar un técnico antes de aprobar');
       return;
@@ -288,6 +311,7 @@ export default function TicketsPanel() {
         const now = new Date().toISOString();
         const updatedTicket: TicketType = {
           ...ticket,
+          area: approve && editableArea ? editableArea : ticket.area, // Usar área editable si se aprobó
           status: approve ? 'Aprobado' : 'Rechazado',
           approvedBy: approve ? user?.email || '' : null,
           approvedDate: approve ? now : null,
@@ -332,7 +356,7 @@ export default function TicketsPanel() {
           orderNumber: ticket.orderNumber,
           ownerName: ticket.ownerName,
           property: `${ticket.tower} - ${ticket.municipalNumber}`,
-          area: ticket.area,
+          area: editableArea || ticket.area, // Usar área editable si está disponible
           status: 'Pendiente de Visita',
           workDetails: [] as Array<{ text: string; image?: string; date: string }>,
           startDate: workStartDate,
@@ -359,6 +383,7 @@ export default function TicketsPanel() {
     setAppointmentShift('');
     setAppointmentTime('');
     setSelectedTechnician('');
+    setEditableArea('');
   };
 
   const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string }> = {
@@ -396,12 +421,13 @@ export default function TicketsPanel() {
       // Admin ve todos los tickets
       filtered = tickets;
     } else if (isTecnico && user?.rut) {
-      // Técnico solo ve tickets asignados a él y de su área
+      // Técnico solo ve tickets asignados a él y de su área (excepto técnico general que ve todos)
       const normalizeRut = (rut: string) => {
         return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
       };
       const userRut = normalizeRut(user.rut);
       const technicianArea = getTechnicianArea();
+      const isGeneral = isGeneralTechnician();
       
       filtered = tickets.filter(t => {
         // Verificar que el ticket tenga técnico asignado
@@ -410,6 +436,11 @@ export default function TicketsPanel() {
         // Verificar que el técnico asignado sea el mismo que el logueado
         const ticketRut = normalizeRut(t.assignedTechnician);
         if (ticketRut !== userRut) return false;
+        
+        // Si es técnico general, no filtrar por área (ve todos los tickets asignados a él)
+        if (isGeneral) {
+          return true;
+        }
         
         // Verificar que el área del ticket coincida con la especialidad del técnico
         if (technicianArea && !technicianArea.includes(t.area)) {
@@ -542,6 +573,7 @@ export default function TicketsPanel() {
                           setAppointmentShift(ticket.preferredShift || '');
                           setAppointmentTime('');
                           setSelectedTechnician('');
+                          setEditableArea(ticket.area); // Inicializar área editable con el área actual
                         }}
                         className="px-3 py-1 text-sm bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors flex items-center gap-1"
                       >
@@ -848,6 +880,7 @@ export default function TicketsPanel() {
                   setAppointmentShift('');
                   setAppointmentTime('');
                   setSelectedTechnician('');
+                  setEditableArea('');
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -903,8 +936,31 @@ export default function TicketsPanel() {
                   })()}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
-                  <p className="text-gray-900">{selectedTicket.area}</p>
+                  {isAdmin && selectedTicket.status === 'Pendiente' && !isTecnico ? (
+                    <>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Área *</label>
+                      <select
+                        value={editableArea}
+                        onChange={(e) => setEditableArea(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-[#2B5F7F] rounded-lg focus:ring-2 focus:ring-[#2B5F7F] focus:border-transparent outline-none bg-white"
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="Plomería">Plomería</option>
+                        <option value="Electricidad">Electricidad</option>
+                        <option value="Carpintería">Carpintería</option>
+                        <option value="Pintura">Pintura</option>
+                        <option value="Gasfitería">Gasfitería</option>
+                        <option value="Albañilería">Albañilería</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Puedes corregir el área si el propietario la seleccionó incorrectamente</p>
+                    </>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
+                      <p className="text-gray-900">{selectedTicket.area}</p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Creación</label>
@@ -1068,14 +1124,19 @@ export default function TicketsPanel() {
                           'Gasfitería': { rut: '22222222-2', name: 'Técnico (Gasfitería)' },
                         };
                         
-                        const technician = selectedTicket.area ? areaToTechnician[selectedTicket.area] : null;
+                        const currentArea = editableArea || selectedTicket.area;
+                        const technician = currentArea ? areaToTechnician[currentArea] : null;
+                        
+                        // Técnico General siempre aparece primero
+                        const generalTechnician = <option key="general" value="33333333-3">Técnico General</option>;
                         
                         if (technician) {
-                          // Si hay un técnico específico para esta área, mostrarlo primero
+                          // Si hay un técnico específico para esta área, mostrarlo primero, luego general, luego otros
                           return (
                             <>
                               <option value={technician.rut}>{technician.name}</option>
-                              {selectedTicket.area !== 'Carpintería' && selectedTicket.area !== 'Gasfitería' && (
+                              {generalTechnician}
+                              {currentArea !== 'Carpintería' && currentArea !== 'Gasfitería' && (
                                 <>
                                   <option value="11111111-1">Técnico (Carpintería)</option>
                                   <option value="22222222-2">Técnico (Gasfitería)</option>
@@ -1085,18 +1146,19 @@ export default function TicketsPanel() {
                           );
                         }
                         
-                        // Si no hay mapeo específico, mostrar todos
+                        // Si no hay mapeo específico, mostrar general primero, luego todos
                         return (
                           <>
+                            {generalTechnician}
                             <option value="11111111-1">Técnico (Carpintería)</option>
                             <option value="22222222-2">Técnico (Gasfitería)</option>
                           </>
                         );
                       })()}
                     </select>
-                    {selectedTicket.area && (
+                    {(editableArea || selectedTicket.area) && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Área del ticket: {selectedTicket.area}
+                        Área del ticket: {editableArea || selectedTicket.area}
                       </p>
                     )}
                   </div>
