@@ -36,6 +36,9 @@ export type Ticket = {
   preferredShift?: string; // 'AM' o 'PM' - Jornada de preferencia
   photo?: string; // Base64 string de la foto adjunta
   assignedTechnician?: string; // RUT del técnico asignado
+  statusChangedToAprobado?: string; // Fecha y hora cuando cambió a "Aprobado"
+  statusChangedToEjecucion?: string; // Fecha y hora cuando cambió a "En Ejecución"
+  statusChangedToTerminada?: string; // Fecha y hora cuando cambió a "Terminada"
 };
 
 export type Order = {

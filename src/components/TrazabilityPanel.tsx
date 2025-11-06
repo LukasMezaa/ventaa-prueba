@@ -73,10 +73,10 @@ export default function TrazabilityPanel() {
       description: 'Tu ticket ha sido rechazado',
     },
     'Finalizado': {
-      color: 'text-blue-800',
+      color: 'text-purple-800',
       icon: CheckCircle,
-      bgColor: 'bg-blue-100',
-      textColor: 'text-blue-800',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-800',
       description: 'Ticket finalizado. La visita se realizó y el problema fue resuelto',
     },
   };
@@ -225,9 +225,9 @@ export default function TrazabilityPanel() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-600 mb-0.5">Finalizados</p>
-              <p className="text-xl font-bold text-blue-600">{stats.finalizados}</p>
+              <p className="text-xl font-bold text-purple-600">{stats.finalizados}</p>
             </div>
-            <CheckCircle className="w-6 h-6 text-blue-500 opacity-20" />
+            <CheckCircle className="w-6 h-6 text-purple-500 opacity-20" />
           </div>
         </div>
       </div>

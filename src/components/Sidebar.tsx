@@ -52,7 +52,7 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
             </div>
             <div className="min-w-0">
               <h1 className="font-bold text-gray-800 text-sm truncate">Constructora FJ</h1>
-              <p className="text-xs text-gray-500 truncate">Alto San Miguel II</p>
+              <p className="text-xs text-gray-500 truncate">Sistema Post-Venta</p>
             </div>
           </div>
           <button

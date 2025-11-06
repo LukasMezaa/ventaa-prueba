@@ -1,4 +1,4 @@
-import { Plus, CheckCircle, XCircle, Clock, FileText, X, Calendar, Upload } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, FileText, X, Calendar, Upload, Wrench } from 'lucide-react';
 import { useState, useEffect } from 'react';
 // import { mockTickets } from '../lib/mockData'; // Ocultado - descomentar si se necesita restaurar tickets mock
 import { Ticket as TicketType, mockPropertyOwners } from '../lib/mockData';
@@ -38,6 +38,43 @@ export default function TicketsPanel() {
     // Disparar evento personalizado para notificar a TrazabilityPanel
     window.dispatchEvent(new CustomEvent('ticketsUpdated', { detail: tickets }));
   }, [tickets]);
+
+  // Escuchar eventos de actualización de tickets desde otros componentes (como TrackingPanel)
+  useEffect(() => {
+    const handleTicketsUpdate = (event: CustomEvent) => {
+      const updatedTickets = event.detail;
+      // Solo actualizar si los tickets realmente cambiaron (evitar bucles infinitos)
+      setTickets(prevTickets => {
+        // Comparar si hay cambios en las fechas de estado
+        const hasChanges = updatedTickets.some((updatedTicket: TicketType) => {
+          const prevTicket = prevTickets.find(t => t.id === updatedTicket.id);
+          if (!prevTicket) return true;
+          return prevTicket.statusChangedToAprobado !== updatedTicket.statusChangedToAprobado ||
+                 prevTicket.statusChangedToEjecucion !== updatedTicket.statusChangedToEjecucion ||
+                 prevTicket.statusChangedToTerminada !== updatedTicket.statusChangedToTerminada ||
+                 prevTicket.status !== updatedTicket.status;
+        });
+        
+        if (hasChanges) {
+          // Si hay un ticket seleccionado, actualizarlo también
+          if (selectedTicket) {
+            const updatedSelectedTicket = updatedTickets.find((t: TicketType) => t.id === selectedTicket.id);
+            if (updatedSelectedTicket) {
+              setSelectedTicket(updatedSelectedTicket);
+            }
+          }
+          return updatedTickets;
+        }
+        return prevTickets;
+      });
+    };
+
+    window.addEventListener('ticketsUpdated', handleTicketsUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('ticketsUpdated', handleTicketsUpdate as EventListener);
+    };
+  }, [selectedTicket]);
   const [formData, setFormData] = useState({
     description: '',
     area: '',
@@ -248,13 +285,16 @@ export default function TicketsPanel() {
 
     const updatedTickets = tickets.map(ticket => {
       if (ticket.id === ticketId) {
+        const now = new Date().toISOString();
         const updatedTicket: TicketType = {
           ...ticket,
           status: approve ? 'Aprobado' : 'Rechazado',
           approvedBy: approve ? user?.email || '' : null,
-          approvedDate: approve ? new Date().toISOString() : null,
+          approvedDate: approve ? now : null,
           orderNumber: approve ? `ORD-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}` : null,
           assignedTechnician: approve ? selectedTechnician : undefined,
+          // Guardar fecha cuando cambia a "Aprobado"
+          statusChangedToAprobado: approve && ticket.status !== 'Aprobado' ? now : ticket.statusChangedToAprobado,
         };
         
         // Si se aprueba, guardar la fecha y hora de cita acordada
@@ -275,6 +315,18 @@ export default function TicketsPanel() {
     if (approve && approvedTicket) {
       const ticket = approvedTicket as TicketType;
       if (ticket.orderNumber) {
+        // Usar la fecha de la cita programada (scheduledDate) si está disponible, 
+        // de lo contrario usar la fecha de aprobación
+        let workStartDate = '';
+        if (ticket.scheduledDate) {
+          // scheduledDate está en formato ISO "YYYY-MM-DDTHH:MM:00", extraer solo la fecha
+          workStartDate = ticket.scheduledDate.split('T')[0];
+        } else if (ticket.approvedDate) {
+          workStartDate = ticket.approvedDate.split('T')[0];
+        } else {
+          workStartDate = new Date().toISOString().split('T')[0];
+        }
+        
         const newWork = {
           id: `work-${ticket.id}`,
           orderNumber: ticket.orderNumber,
@@ -283,8 +335,8 @@ export default function TicketsPanel() {
           area: ticket.area,
           status: 'Pendiente de Visita',
           workDetails: [] as Array<{ text: string; image?: string; date: string }>,
-          startDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
-          updateDate: ticket.approvedDate ? ticket.approvedDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          startDate: workStartDate,
+          updateDate: workStartDate, // Inicialmente igual a startDate
           assignedTechnician: ticket.assignedTechnician,
         };
 
@@ -329,21 +381,21 @@ export default function TicketsPanel() {
       textColor: 'text-red-800',
     },
     'Finalizado': {
-      color: 'text-blue-800',
+      color: 'text-purple-800',
       icon: CheckCircle,
-      bgColor: 'bg-blue-100',
-      textColor: 'text-blue-800',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-800',
     },
   };
 
-  // Filtrar tickets según el rol
+  // Filtrar tickets según el rol y ordenarlos por fecha de creación (más reciente primero)
   const filteredTickets = (() => {
+    let filtered: TicketType[] = [];
+    
     if (isAdmin) {
       // Admin ve todos los tickets
-      return tickets;
-    }
-    
-    if (isTecnico && user?.rut) {
+      filtered = tickets;
+    } else if (isTecnico && user?.rut) {
       // Técnico solo ve tickets asignados a él y de su área
       const normalizeRut = (rut: string) => {
         return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
@@ -351,7 +403,7 @@ export default function TicketsPanel() {
       const userRut = normalizeRut(user.rut);
       const technicianArea = getTechnicianArea();
       
-      return tickets.filter(t => {
+      filtered = tickets.filter(t => {
         // Verificar que el ticket tenga técnico asignado
         if (!t.assignedTechnician) return false;
         
@@ -366,19 +418,26 @@ export default function TicketsPanel() {
         
         return true;
       });
+    } else {
+      // Propietario solo ve sus tickets (por RUT o email)
+      filtered = tickets.filter(t => {
+        // Comparar por RUT si está disponible (más confiable)
+        if (user?.rut && t.ownerRut) {
+          const normalizeRut = (rut: string) => {
+            return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+          };
+          return normalizeRut(t.ownerRut) === normalizeRut(user.rut);
+        }
+        // Fallback: comparar por email si no hay RUT
+        return t.ownerEmail === user?.email;
+      });
     }
     
-    // Propietario solo ve sus tickets (por RUT o email)
-    return tickets.filter(t => {
-      // Comparar por RUT si está disponible (más confiable)
-      if (user?.rut && t.ownerRut) {
-        const normalizeRut = (rut: string) => {
-          return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
-        };
-        return normalizeRut(t.ownerRut) === normalizeRut(user.rut);
-      }
-      // Fallback: comparar por email si no hay RUT
-      return t.ownerEmail === user?.email;
+    // Ordenar por fecha de creación descendente (más reciente primero)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdDate).getTime();
+      const dateB = new Date(b.createdDate).getTime();
+      return dateB - dateA; // Orden descendente
     });
   })();
 
@@ -489,7 +548,7 @@ export default function TicketsPanel() {
                         {isAdmin && !isTecnico ? (
                           <>
                             <Calendar className="w-4 h-4" />
-                            Agendar
+                            Agenda/detalle
                           </>
                         ) : (
                           <>
@@ -702,7 +761,7 @@ export default function TicketsPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Jornada Visita Tecnico</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jornada Preferencial Visita Tecnico</label>
                   <div className="flex gap-3 mt-2">
                     <button
                       type="button"
@@ -874,6 +933,48 @@ export default function TicketsPanel() {
                       alt="Foto del problema adjuntada por el propietario"
                       className="w-full max-h-96 object-contain rounded-lg"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Historial de Cambios de Estado */}
+              {(selectedTicket.statusChangedToAprobado || selectedTicket.statusChangedToEjecucion || selectedTicket.statusChangedToTerminada) && (
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-600 mb-3">Historial de Cambios de Estado</label>
+                  <div className="space-y-2">
+                    {selectedTicket.statusChangedToTerminada && (
+                      <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          <CheckCircle className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">Cambió a "Terminada"</p>
+                          <p className="text-xs text-gray-600">{new Date(selectedTicket.statusChangedToTerminada).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedTicket.statusChangedToEjecucion && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          <Wrench className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">Cambió a "En Ejecución"</p>
+                          <p className="text-xs text-gray-600">{new Date(selectedTicket.statusChangedToEjecucion).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedTicket.statusChangedToAprobado && (
+                      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          <CheckCircle className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">Cambió a "Aprobado"</p>
+                          <p className="text-xs text-gray-600">{new Date(selectedTicket.statusChangedToAprobado).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

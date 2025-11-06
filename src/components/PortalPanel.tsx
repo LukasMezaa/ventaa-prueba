@@ -118,7 +118,7 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
             <h1 className="text-2xl sm:text-3xl font-bold mb-1">
               {isAdmin ? 'Portal de Administrador' : 'Portal del Propietario'}
             </h1>
-            <p className="text-white/90">Bienvenido a Alto San Miguel II</p>
+            <p className="text-white/90">Bienvenido a Sistema Post-Venta</p>
           </div>
         </div>
       </div>

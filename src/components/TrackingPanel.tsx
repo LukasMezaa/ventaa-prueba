@@ -93,9 +93,9 @@ const statusConfig: Record<string, { color: string; icon: any; bgColor: string }
       bgColor: 'bg-blue-100 border-blue-200',
     },
     'Terminada': {
-      color: 'text-green-800',
+      color: 'text-purple-800',
       icon: CheckCircle,
-      bgColor: 'bg-green-100 border-green-200',
+      bgColor: 'bg-purple-100 border-purple-200',
     },
     'No Aplica': {
       color: 'text-gray-800',
@@ -620,8 +620,8 @@ export default function TrackingPanel() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-3">Documento Certificado</label>
                   {selectedWork.document && !isUpdatingStatus ? (
-                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <FileText className="w-5 h-5 text-green-600" />
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <FileText className="w-5 h-5 text-purple-600" />
                       <span className="text-sm text-gray-700">{selectedWork.document}</span>
                     </div>
                   ) : (
@@ -656,7 +656,7 @@ export default function TrackingPanel() {
                 </div>
               )}
 
-              {/* Fechas */}
+              {/* Fechas Básicas */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Fecha de Inicio</label>
@@ -666,19 +666,38 @@ export default function TrackingPanel() {
                   <label className="block text-sm font-medium text-gray-600 mb-1">Última Actualización</label>
                   <p className="text-gray-900">{new Date(selectedWork.updateDate).toLocaleDateString('es-CL')}</p>
                 </div>
-                {selectedWork.statusChangedToEjecucion && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Cambió a "En Ejecución"</label>
-                    <p className="text-gray-900">{new Date(selectedWork.statusChangedToEjecucion).toLocaleString('es-CL')}</p>
-                  </div>
-                )}
-                {selectedWork.statusChangedToTerminada && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Cambió a "Terminada"</label>
-                    <p className="text-gray-900">{new Date(selectedWork.statusChangedToTerminada).toLocaleString('es-CL')}</p>
-                  </div>
-                )}
               </div>
+
+              {/* Historial de Cambios de Estado */}
+              {(selectedWork.statusChangedToEjecucion || selectedWork.statusChangedToTerminada) && (
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-600 mb-3">Historial de Cambios de Estado</label>
+                  <div className="space-y-2">
+                    {selectedWork.statusChangedToTerminada && (
+                      <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          <CheckCircle className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">Cambió a "Terminada"</p>
+                          <p className="text-xs text-gray-600">{new Date(selectedWork.statusChangedToTerminada).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedWork.statusChangedToEjecucion && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          <Wrench className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">Cambió a "En Ejecución"</p>
+                          <p className="text-xs text-gray-600">{new Date(selectedWork.statusChangedToEjecucion).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Botones de Acción */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">
@@ -719,25 +738,42 @@ export default function TrackingPanel() {
                         setSelectedFile(null);
                         setShowStatusMenu(false);
 
-                        // Si el trabajo se marca como "Terminada", actualizar el ticket correspondiente a "Finalizado"
-                        if (newStatus === 'Terminada' && selectedWork.orderNumber) {
-                          // Buscar el ticket por orderNumber y actualizarlo
+                        // Actualizar el ticket correspondiente con las fechas de cambio de estado
+                        if (selectedWork.orderNumber) {
                           const storedTickets = localStorage.getItem('tickets');
                           if (storedTickets) {
                             const tickets = JSON.parse(storedTickets);
                             const updatedTickets = tickets.map((ticket: any) => {
                               if (ticket.orderNumber === selectedWork.orderNumber) {
-                                return {
+                                const ticketUpdate: any = {
                                   ...ticket,
-                                  status: 'Finalizado',
                                 };
+                                
+                                // Si cambió a "En Ejecución", guardar la fecha
+                                if (newStatus === 'En Ejecución' && selectedWork.status !== 'En Ejecución') {
+                                  ticketUpdate.statusChangedToEjecucion = now;
+                                } else if (updatedWork.statusChangedToEjecucion) {
+                                  ticketUpdate.statusChangedToEjecucion = updatedWork.statusChangedToEjecucion;
+                                }
+                                
+                                // Si cambió a "Terminada", actualizar estado y guardar la fecha
+                                if (newStatus === 'Terminada' && selectedWork.status !== 'Terminada') {
+                                  ticketUpdate.status = 'Finalizado';
+                                  ticketUpdate.statusChangedToTerminada = now;
+                                } else if (updatedWork.statusChangedToTerminada) {
+                                  ticketUpdate.statusChangedToTerminada = updatedWork.statusChangedToTerminada;
+                                }
+                                
+                                return ticketUpdate;
                               }
                               return ticket;
                             });
                             localStorage.setItem('tickets', JSON.stringify(updatedTickets));
                             // Disparar evento para actualizar otros componentes
                             window.dispatchEvent(new CustomEvent('ticketsUpdated', { detail: updatedTickets }));
-                            window.dispatchEvent(new CustomEvent('workCompleted', { detail: { orderNumber: selectedWork.orderNumber } }));
+                            if (newStatus === 'Terminada') {
+                              window.dispatchEvent(new CustomEvent('workCompleted', { detail: { orderNumber: selectedWork.orderNumber } }));
+                            }
                           }
                         }
                       }}
