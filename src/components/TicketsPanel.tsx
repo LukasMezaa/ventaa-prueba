@@ -17,6 +17,7 @@ export default function TicketsPanel() {
   const [editableArea, setEditableArea] = useState<string>(''); // Área editable por admin
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | null>(null); // Filtro de estado para propietarios
   
   // Cargar tickets desde localStorage o usar array vacío
   const loadTickets = (): TicketType[] => {
@@ -91,6 +92,7 @@ export default function TicketsPanel() {
 
   const isAdmin = user?.role === 'admin';
   const isTecnico = user?.role === 'tecnico';
+  const isPropietario = user?.role === 'propietario';
   
   // Mapeo de técnicos a sus áreas de especialización
   const technicianAreas: { [key: string]: string[] } = {
@@ -386,30 +388,34 @@ export default function TicketsPanel() {
     setEditableArea('');
   };
 
-  const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string }> = {
+  const statusConfig: Record<string, { color: string; icon: any; bgColor: string; textColor: string; borderColor: string }> = {
     'Pendiente': {
       color: 'text-yellow-800',
       icon: Clock,
       bgColor: 'bg-yellow-100',
       textColor: 'text-yellow-800',
+      borderColor: 'border-yellow-300',
     },
     'Aprobado': {
       color: 'text-green-800',
       icon: CheckCircle,
       bgColor: 'bg-green-100',
       textColor: 'text-green-800',
+      borderColor: 'border-green-300',
     },
     'Rechazado': {
       color: 'text-red-800',
       icon: XCircle,
       bgColor: 'bg-red-100',
       textColor: 'text-red-800',
+      borderColor: 'border-red-300',
     },
     'Finalizado': {
       color: 'text-purple-800',
       icon: CheckCircle,
       bgColor: 'bg-purple-100',
       textColor: 'text-purple-800',
+      borderColor: 'border-purple-300',
     },
   };
 
@@ -462,6 +468,16 @@ export default function TicketsPanel() {
         // Fallback: comparar por email si no hay RUT
         return t.ownerEmail === user?.email;
       });
+      
+      // Aplicar filtro de estado si está seleccionado (solo para propietarios)
+      if (selectedStatusFilter) {
+        filtered = filtered.filter(t => t.status === selectedStatusFilter);
+      }
+    }
+    
+    // Aplicar filtro de estado si está seleccionado (para administradores)
+    if (isAdmin && selectedStatusFilter) {
+      filtered = filtered.filter(t => t.status === selectedStatusFilter);
     }
     
     // Ordenar por fecha de creación descendente (más reciente primero)
@@ -527,6 +543,69 @@ export default function TicketsPanel() {
             </button>
           )}
         </div>
+
+        {/* Filtro de estado para propietarios y administradores */}
+        {(isPropietario || isAdmin) && (
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 mr-2">Filtrar por estado:</span>
+              <button
+                onClick={() => setSelectedStatusFilter(null)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  selectedStatusFilter === null
+                    ? 'bg-gray-800 text-white shadow-md'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                Todos
+              </button>
+              {Object.entries(statusConfig).map(([status, config]) => {
+                const Icon = config.icon;
+                const count = tickets.filter(t => {
+                  // Para propietarios, filtrar primero por propietario
+                  if (isPropietario) {
+                    if (user?.rut && t.ownerRut) {
+                      const normalizeRut = (rut: string) => {
+                        return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+                      };
+                      if (normalizeRut(t.ownerRut) !== normalizeRut(user.rut)) return false;
+                    } else if (t.ownerEmail !== user?.email) {
+                      return false;
+                    }
+                  }
+                  // Para administradores, contar todos los tickets con ese estado
+                  return t.status === status;
+                }).length;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setSelectedStatusFilter(status === selectedStatusFilter ? null : status)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                      selectedStatusFilter === status
+                        ? `${config.bgColor} ${config.textColor} ${config.borderColor} shadow-md`
+                        : `bg-white ${config.textColor} border-gray-300 ${
+                            status === 'Pendiente' ? 'hover:bg-yellow-50' :
+                            status === 'Aprobado' ? 'hover:bg-green-50' :
+                            status === 'Rechazado' ? 'hover:bg-red-50' :
+                            'hover:bg-purple-50'
+                          }`
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{status}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      selectedStatusFilter === status
+                        ? `${config.textColor} bg-white/50`
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
