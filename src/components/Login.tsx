@@ -24,27 +24,29 @@ export default function Login() {
     }
   };
 
+  const handleDownloadManual = () => {
+    // Crear un enlace temporal para descargar el PDF
+    const link = document.createElement('a');
+    link.href = '/Manual-CFJ.pdf'; // Ruta del PDF en la carpeta public
+    link.download = 'Manual-CFJ.pdf';
+    link.target = '_blank'; // Abrir en nueva pestaña si no se puede descargar
+    
+    // Manejar error si el archivo no existe
+    link.onerror = () => {
+      alert('El archivo de la guía de postventa no está disponible. Por favor, contacte al administrador.');
+    };
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#2B5F7F] via-[#1a4a5f] to-[#00B050] p-4 relative">
-      {/* Botón de descarga de guía en esquina superior derecha */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Botón de descarga de guía en esquina superior derecha - Solo visible en desktop */}
+      <div className="hidden sm:block absolute top-4 right-4 z-10">
         <button
-          onClick={() => {
-            // Crear un enlace temporal para descargar el PDF
-            const link = document.createElement('a');
-            link.href = '/Manual-CFJ.pdf'; // Ruta del PDF en la carpeta public
-            link.download = 'Manual-CFJ.pdf';
-            link.target = '_blank'; // Abrir en nueva pestaña si no se puede descargar
-            
-            // Manejar error si el archivo no existe
-            link.onerror = () => {
-              alert('El archivo de la guía de postventa no está disponible. Por favor, contacte al administrador.');
-            };
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
+          onClick={handleDownloadManual}
           className="group flex flex-col items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all backdrop-blur-sm border border-white/20 text-white hover:border-white/30 text-center"
           title="Descargar Guía de Postventa"
         >
@@ -60,7 +62,18 @@ export default function Login() {
       </div>
       
       <div className="w-full max-w-md animate-fade-in">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 relative">
+          {/* Botón de descarga dentro del login - Solo visible en móvil */}
+          <div className="sm:hidden absolute top-2 right-2 z-10">
+            <button
+              onClick={handleDownloadManual}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#2B5F7F]/10 hover:bg-[#2B5F7F]/20 rounded-lg transition-all border border-[#2B5F7F]/20 text-[#2B5F7F] hover:border-[#2B5F7F]/30"
+              title="Descargar Guía de Postventa"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-medium">Manual</span>
+            </button>
+          </div>
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#2B5F7F] to-[#00B050] rounded-xl mb-3">
               <Building2 className="w-6 h-6 text-white" />
