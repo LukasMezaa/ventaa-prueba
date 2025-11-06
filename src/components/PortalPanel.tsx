@@ -1,4 +1,4 @@
-import { Home, FileText, Calendar, Bell, User, Ticket, Activity } from 'lucide-react';
+import { Home, FileText, Calendar, Bell, User, Ticket, Activity, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { Ticket as TicketType, mockTickets } from '../lib/mockData';
@@ -110,16 +110,41 @@ export default function PortalPanel({ onNavigate }: PortalPanelProps) {
     <div className="space-y-6">
       {/* Header del Portal */}
       <div className="bg-gradient-to-r from-[#2B5F7F] to-[#00B050] rounded-xl p-6 sm:p-8 text-white">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-            <Home className="w-8 h-8" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+              <Home className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                {isAdmin ? 'Portal de Administrador' : 'Portal del Propietario'}
+              </h1>
+              <p className="text-white/90">Bienvenido a Sistema Post-Venta</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-              {isAdmin ? 'Portal de Administrador' : 'Portal del Propietario'}
-            </h1>
-            <p className="text-white/90">Bienvenido a Sistema Post-Venta</p>
-          </div>
+          <button
+            onClick={() => {
+              // Crear un enlace temporal para descargar el PDF
+              const link = document.createElement('a');
+              link.href = '/Manual-CFJ.pdf'; // Ruta del PDF en la carpeta public
+              link.download = 'Manual-CFJ.pdf';
+              link.target = '_blank'; // Abrir en nueva pestaña si no se puede descargar
+              
+              // Manejar error si el archivo no existe
+              link.onerror = () => {
+                alert('El archivo de la guía de postventa no está disponible. Por favor, contacte al administrador.');
+              };
+              
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm border border-white/30"
+            title="Descargar Guía de Postventa"
+          >
+            <Download className="w-5 h-5" />
+            <span className="hidden sm:inline">Manual de uso</span>
+          </button>
         </div>
       </div>
 
