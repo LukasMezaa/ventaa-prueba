@@ -1,4 +1,4 @@
-import { Settings, Users, Shield, Key, Bell, Database } from 'lucide-react';
+import { Users, Shield, Key } from 'lucide-react';
 import { useState } from 'react';
 
 interface User {
@@ -10,7 +10,7 @@ interface User {
 }
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'permissions' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'permissions'>('users');
 
   const mockUsers: User[] = [
     {
@@ -41,6 +41,27 @@ export default function AdminPanel() {
       role: 'Propietario',
       lastLogin: '2024-10-09 14:20',
     },
+    {
+      id: '5',
+      name: 'Técnico (Carpintería)',
+      email: '11111111-1@sistema.com',
+      role: 'Técnico',
+      lastLogin: '2024-10-10 10:00',
+    },
+    {
+      id: '6',
+      name: 'Técnico (Gasfitería)',
+      email: '22222222-2@sistema.com',
+      role: 'Técnico',
+      lastLogin: '2024-10-10 09:45',
+    },
+    {
+      id: '7',
+      name: 'Técnico General',
+      email: '33333333-3@sistema.com',
+      role: 'Técnico',
+      lastLogin: '2024-10-10 09:15',
+    },
   ];
 
   const rolePermissions = [
@@ -66,12 +87,23 @@ export default function AdminPanel() {
         'Ver notificaciones',
       ],
     },
+    {
+      role: 'Técnico',
+      description: 'Acceso a gestión de trabajos y solicitudes',
+      permissions: [
+        'Ver solicitudes asignadas',
+        'Actualizar estado de trabajos',
+        'Registrar avances',
+        'Subir documentos',
+        'Comunicarse con propietarios',
+      ],
+    },
   ];
 
   return (
     <div className="space-y-6">
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -105,6 +137,18 @@ export default function AdminPanel() {
             <Users className="w-10 h-10 text-green-500 opacity-20" />
           </div>
         </div>
+
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Técnicos</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {mockUsers.filter((u) => u.role === 'Técnico').length}
+              </p>
+            </div>
+            <Users className="w-10 h-10 text-orange-500 opacity-20" />
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -135,19 +179,6 @@ export default function AdminPanel() {
               <div className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
                 Permisos y Roles
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`py-4 px-4 border-b-2 transition-colors ${
-                activeTab === 'settings'
-                  ? 'border-[#2B5F7F] text-[#2B5F7F] font-semibold'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Configuración
               </div>
             </button>
           </div>
@@ -186,7 +217,9 @@ export default function AdminPanel() {
                             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                               user.role === 'Administrador'
                                 ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
+                                : user.role === 'Propietario'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-orange-100 text-orange-800'
                             }`}
                           >
                             {user.role}
@@ -214,10 +247,14 @@ export default function AdminPanel() {
                   <div key={index} className="border border-gray-200 rounded-xl p-6">
                     <div className="flex items-start gap-4 mb-4">
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                        rolePerm.role === 'Administrador' ? 'bg-blue-100' : 'bg-green-100'
+                        rolePerm.role === 'Administrador' ? 'bg-blue-100' 
+                        : rolePerm.role === 'Propietario' ? 'bg-green-100'
+                        : 'bg-orange-100'
                       }`}>
                         <Shield className={`w-6 h-6 ${
-                          rolePerm.role === 'Administrador' ? 'text-blue-600' : 'text-green-600'
+                          rolePerm.role === 'Administrador' ? 'text-blue-600' 
+                          : rolePerm.role === 'Propietario' ? 'text-green-600'
+                          : 'text-orange-600'
                         }`} />
                       </div>
                       <div className="flex-1">
@@ -237,56 +274,6 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab: Configuración */}
-          {activeTab === 'settings' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-gray-800">Configuración del Sistema</h3>
-
-              <div className="space-y-4">
-                <div className="border border-gray-200 rounded-xl p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <Database className="w-8 h-8 text-[#2B5F7F]" />
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-1">Gestión de Base de Datos</h4>
-                      <p className="text-sm text-gray-600">Configurar y actualizar la base de datos de propietarios</p>
-                    </div>
-                  </div>
-                  <button className="px-4 py-2 bg-[#2B5F7F] text-white rounded-lg hover:bg-[#1a4968] transition-colors">
-                    Gestionar Base de Datos
-                  </button>
-                </div>
-
-                <div className="border border-gray-200 rounded-xl p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <Bell className="w-8 h-8 text-yellow-500" />
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-1">Configuración de Notificaciones</h4>
-                      <p className="text-sm text-gray-600">Ajustar alertas y recordatorios automáticos</p>
-                    </div>
-                  </div>
-                  <button className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
-                    Configurar Notificaciones
-                  </button>
-                </div>
-
-                <div className="border border-gray-200 rounded-xl p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <Settings className="w-8 h-8 text-purple-500" />
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-1">Actualizaciones Centralizadas</h4>
-                      <p className="text-sm text-gray-600">El encargado de postventa gestiona todas las actualizaciones</p>
-                    </div>
-                  </div>
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <p className="text-sm text-purple-800">
-                      <strong>Encargado:</strong> Control centralizado de datos y configuraciones
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
