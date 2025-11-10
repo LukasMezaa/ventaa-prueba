@@ -26,7 +26,7 @@ export default function MetricsPanel() {
     const monthlyData: Record<string, { month: string; ordenes: number }> = {};
 
     orders.forEach((order) => {
-      const date = new Date(order.request_date);
+      const date = new Date(order.createdDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const monthLabel = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 
@@ -54,7 +54,8 @@ export default function MetricsPanel() {
   const areaData = useMemo(() => {
     const areaCount: Record<string, number> = {};
     orders.forEach((order) => {
-      areaCount[order.area_specialty] = (areaCount[order.area_specialty] || 0) + 1;
+      const area = order.area ?? 'Sin área';
+      areaCount[area] = (areaCount[area] || 0) + 1;
     });
 
     return Object.entries(areaCount)
@@ -71,7 +72,7 @@ export default function MetricsPanel() {
     const thisMonth = new Date().getMonth();
     const thisYear = new Date().getFullYear();
     const monthlyOrders = orders.filter((o) => {
-      const date = new Date(o.request_date);
+      const date = new Date(o.createdDate);
       return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
     }).length;
 
@@ -282,7 +283,7 @@ export default function MetricsPanel() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {areaData.map((area) => {
-                const areaOrders = orders.filter((o) => o.area_specialty === area.name);
+                const areaOrders = orders.filter((o) => (o.area ?? 'Sin área') === area.name);
                 const completed = areaOrders.filter((o) => o.status === 'Completada').length;
                 const pending = areaOrders.filter((o) => o.status === 'Pendiente' || o.status === 'En Proceso').length;
                 const completionRate = area.ordenes > 0 ? ((completed / area.ordenes) * 100).toFixed(1) : '0';

@@ -1,4 +1,4 @@
-import { FileText, Plus, Search, X, ChevronDown, CheckCircle } from 'lucide-react';
+import { FileText, Plus, X, ChevronDown, CheckCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface Request {
@@ -96,14 +96,14 @@ export default function RequestsPanel() {
     const newRequest: Request = {
       id: Date.now().toString(),
       orderNumber: generateOrderNumber(),
-      ownerName: formData.ownerName,
-      phone: formData.phone,
-      tower: formData.tower,
-      municipalNumber: formData.municipalNumber,
-      requestDate: new Date().toISOString().split('T')[0],
-      receptionMethod: formData.receptionMethod,
-      observation: formData.observation,
-      area: formData.area,
+      ownerName: formData.ownerName ?? '',
+      phone: formData.phone ?? '',
+      tower: formData.tower ?? '',
+      municipalNumber: formData.municipalNumber ?? '',
+      requestDate: new Date().toISOString().slice(0, 10),
+      receptionMethod: formData.receptionMethod ?? 'Manual',
+      observation: formData.observation ?? '',
+      area: formData.area ?? '',
       status: 'Pendiente de Visita',
     };
 

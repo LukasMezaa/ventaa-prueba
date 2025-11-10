@@ -173,7 +173,7 @@ export default function Sidebar({ activeSection, onSectionChange, isOpen, onClos
         <div className="flex items-center gap-3 px-3 lg:px-4 py-3 mb-2">
           <div className="w-8 h-8 bg-gradient-to-br from-[#2B5F7F] to-[#00B050] rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-white text-sm font-semibold">
-              {user?.email?.[0].toUpperCase()}
+              {(user?.email ?? '').charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">

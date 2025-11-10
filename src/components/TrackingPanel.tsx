@@ -24,92 +24,42 @@ interface WorkTracking {
   assignedTechnician?: string; // RUT del técnico asignado
 }
 
-// OCULTADO: Estos trabajos mock se pueden restaurar comentando las siguientes líneas y descomentando el array
-// Para volver a usar estos trabajos, descomenta el array y cambia loadWorks() para usar mockWorks en lugar de []
-const mockWorks: WorkTracking[] = [
-  // {
-  //   id: '1',
-  //   orderNumber: 'ORD-2024-001',
-  //   ownerName: 'Juan Pérez',
-  //   property: 'Torre 1 - 101',
-  //   area: 'Plomería',
-  //   status: 'En Ejecución',
-  //   workDetails: [
-  //     { text: 'Se picó cerámica del baño', date: '2024-10-02' },
-  //     { text: 'Se está conectando nueva tubería', date: '2024-10-03' }
-  //   ],
-  //   startDate: '2024-10-02',
-  //   updateDate: '2024-10-08',
-  // },
-  // {
-  //   id: '2',
-  //   orderNumber: 'ORD-2024-002',
-  //   ownerName: 'María González',
-  //   property: 'Torre 2 - 205',
-  //   area: 'Carpintería',
-  //   status: 'Pendiente de Visita',
-  //   workDetails: [],
-  //   startDate: '2024-10-05',
-  //   updateDate: '2024-10-05',
-  // },
-  // {
-  //   id: '3',
-  //   orderNumber: 'ORD-2024-003',
-  //   ownerName: 'Carlos Rodríguez',
-  //   property: 'Torre 3 - 310',
-  //   area: 'Gasfitería',
-  //   status: 'Terminada',
-  //   workDetails: [
-  //     { text: 'Reparación de tubería', date: '2024-09-28' },
-  //     { text: 'Instalación de válvulas', date: '2024-09-30' },
-  //     { text: 'Prueba de presión', date: '2024-10-01' }
-  //   ],
-  //   startDate: '2024-09-28',
-  //   updateDate: '2024-10-06',
-  //   document: 'certificado.pdf',
-  // },
-  // {
-  //   id: '4',
-  //   orderNumber: 'ORD-2024-004',
-  //   ownerName: 'Ana Martínez',
-  //   property: 'Torre 1 - 115',
-  //   area: 'Pintura',
-  //   status: 'No Aplica',
-  //   workDetails: [],
-  //   startDate: '2024-09-15',
-  //   updateDate: '2024-09-20',
-  // },
-];
-
 const statusConfig: Record<string, { color: string; icon: any; bgColor: string }> = {
-    'Pendiente de Visita': {
-      color: 'text-yellow-800',
-      icon: Clock,
-      bgColor: 'bg-yellow-100 border-yellow-200',
-    },
-    'En Ejecución': {
-      color: 'text-blue-800',
-      icon: Wrench,
-      bgColor: 'bg-blue-100 border-blue-200',
-    },
-    'Terminada': {
-      color: 'text-purple-800',
-      icon: CheckCircle,
-      bgColor: 'bg-purple-100 border-purple-200',
-    },
-    'No Aplica': {
-      color: 'text-gray-800',
-      icon: XCircle,
-      bgColor: 'bg-gray-100 border-gray-200',
-    },
+  'Pendiente de Visita': {
+    color: 'text-yellow-800',
+    icon: Clock,
+    bgColor: 'bg-yellow-100 border-yellow-200',
+  },
+  'En Ejecución': {
+    color: 'text-blue-800',
+    icon: Wrench,
+    bgColor: 'bg-blue-100 border-blue-200',
+  },
+  Terminada: {
+    color: 'text-purple-800',
+    icon: CheckCircle,
+    bgColor: 'bg-purple-100 border-purple-200',
+  },
+  'No Aplica': {
+    color: 'text-gray-800',
+    icon: XCircle,
+    bgColor: 'bg-gray-100 border-gray-200',
+  },
 };
+
+const fallbackStatusConfig = {
+  color: 'text-gray-800',
+  icon: FileText,
+  bgColor: 'bg-gray-100 border-gray-200',
+};
+
+const getStatusConfig = (status: string) => statusConfig[status] ?? fallbackStatusConfig;
 
 export default function TrackingPanel() {
   const { user } = useAuth();
   const isTecnico = user?.role === 'tecnico';
-  const isAdmin = user?.role === 'admin';
   const [selectedWork, setSelectedWork] = useState<WorkTracking | null>(null);
-  
+
   // Mapeo de técnicos a sus áreas de especialización
   const technicianAreas: { [key: string]: string[] } = {
     '11111111-1': ['Carpintería'], // Técnico Carpintería
@@ -149,7 +99,11 @@ export default function TrackingPanel() {
   const loadWorks = (): WorkTracking[] => {
     const stored = localStorage.getItem('workTracking');
     if (stored) {
-      return JSON.parse(stored);
+      try {
+        return JSON.parse(stored) as WorkTracking[];
+      } catch {
+        localStorage.removeItem('workTracking');
+      }
     }
     // Si no hay localStorage, inicializar con array vacío (mockWorks están ocultos)
     // Para restaurar trabajos mock, cambiar [] por mockWorks
@@ -163,7 +117,6 @@ export default function TrackingPanel() {
   const [newStatus, setNewStatus] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newActivity, setNewActivity] = useState<string>('');
-  const [activityImage, setActivityImage] = useState<File | null>(null);
   const [activityImagePreview, setActivityImagePreview] = useState<string | null>(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
@@ -183,12 +136,14 @@ export default function TrackingPanel() {
       }
     };
 
-    if (showStatusMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
+    if (!showStatusMenu) {
+      return;
     }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [showStatusMenu]);
 
   // Escuchar eventos de creación de nuevos trabajos
@@ -222,7 +177,6 @@ export default function TrackingPanel() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type.startsWith('image/')) {
-        setActivityImage(file);
         const reader = new FileReader();
         reader.onloadend = () => {
           setActivityImagePreview(reader.result as string);
@@ -235,7 +189,6 @@ export default function TrackingPanel() {
   };
 
   const handleRemoveActivityImage = () => {
-    setActivityImage(null);
     setActivityImagePreview(null);
     const fileInput = document.getElementById('activity-image-upload') as HTMLInputElement;
     if (fileInput) {
@@ -246,23 +199,27 @@ export default function TrackingPanel() {
   const handleAddActivity = () => {
     if (!selectedWork || !newActivity.trim()) return;
 
-    const newActivityItem: WorkActivity = {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const baseActivity: WorkActivity = {
       text: newActivity.trim(),
-      image: activityImagePreview || undefined,
-      date: new Date().toISOString().split('T')[0],
+      date: today,
     };
 
-    const updatedWork = {
+    const newActivityItem: WorkActivity = activityImagePreview
+      ? { ...baseActivity, image: activityImagePreview }
+      : baseActivity;
+
+    const updatedWork: WorkTracking = {
       ...selectedWork,
       workDetails: [...selectedWork.workDetails, newActivityItem],
-      updateDate: new Date().toISOString().split('T')[0],
+      updateDate: today,
     };
 
-    const updatedWorks = works.map(w => w.id === selectedWork.id ? updatedWork : w);
+    const updatedWorks = works.map((w) => (w.id === selectedWork.id ? updatedWork : w));
     setWorks(updatedWorks);
     setSelectedWork(updatedWork);
     setNewActivity('');
-    setActivityImage(null);
     setActivityImagePreview(null);
   };
 
@@ -417,7 +374,7 @@ export default function TrackingPanel() {
                 const dateB = new Date(b.startDate).getTime();
                 return dateB - dateA; // Orden descendente
               }).map((work) => {
-                const config = statusConfig[work.status];
+                const config = getStatusConfig(work.status);
                 const Icon = config.icon;
                 return (
                   <tr key={work.id} className="hover:bg-gray-50">
@@ -513,7 +470,7 @@ export default function TrackingPanel() {
                   ) : (
                     <div className="relative">
                       {(() => {
-                        const config = statusConfig[selectedWork.status];
+                        const config = getStatusConfig(selectedWork.status);
                         const Icon = config.icon;
                         return (
                           <button
@@ -756,21 +713,33 @@ export default function TrackingPanel() {
                     <button
                       onClick={() => {
                         const now = new Date().toISOString();
+                        const today = now.slice(0, 10);
+
+                        const statusUpdates: Partial<
+                          Pick<WorkTracking, 'statusChangedToEjecucion' | 'statusChangedToTerminada' | 'document'>
+                        > = {};
+
+                        if (newStatus === 'En Ejecución' && selectedWork.status !== 'En Ejecución') {
+                          statusUpdates.statusChangedToEjecucion = now;
+                        }
+
+                        if (newStatus === 'Terminada') {
+                          if (selectedWork.status !== 'Terminada') {
+                            statusUpdates.statusChangedToTerminada = now;
+                          }
+
+                          if (selectedFile) {
+                            statusUpdates.document = selectedFile.name;
+                          }
+                        }
+
                         const updatedWork: WorkTracking = {
                           ...selectedWork,
                           status: newStatus,
-                          updateDate: new Date().toISOString().split('T')[0],
-                          document: newStatus === 'Terminada' && selectedFile ? selectedFile.name : selectedWork.document,
-                          // Guardar fecha cuando cambia a "En Ejecución"
-                          statusChangedToEjecucion: newStatus === 'En Ejecución' && selectedWork.status !== 'En Ejecución' 
-                            ? now 
-                            : selectedWork.statusChangedToEjecucion,
-                          // Guardar fecha cuando cambia a "Terminada"
-                          statusChangedToTerminada: newStatus === 'Terminada' && selectedWork.status !== 'Terminada' 
-                            ? now 
-                            : selectedWork.statusChangedToTerminada,
+                          updateDate: today,
+                          ...statusUpdates,
                         };
-                        const updatedWorks = works.map(w => w.id === selectedWork.id ? updatedWork : w);
+                        const updatedWorks = works.map((w) => (w.id === selectedWork.id ? updatedWork : w));
                         setWorks(updatedWorks);
                         setSelectedWork(updatedWork);
                         setIsUpdatingStatus(false);
@@ -830,7 +799,6 @@ export default function TrackingPanel() {
                         setNewStatus('');
                         setSelectedFile(null);
                         setNewActivity('');
-                        setActivityImage(null);
                         setActivityImagePreview(null);
                         setShowStatusMenu(false);
                       }}

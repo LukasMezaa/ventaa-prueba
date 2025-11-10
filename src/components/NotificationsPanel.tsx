@@ -1,4 +1,4 @@
-import { Bell, CheckCircle, Clock, AlertCircle, FileText, Calendar, User, X } from 'lucide-react';
+import { Bell, CheckCircle, AlertCircle, FileText, Calendar, User, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface Notification {

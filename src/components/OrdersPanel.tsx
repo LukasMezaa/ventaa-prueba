@@ -3,10 +3,42 @@ import { ClipboardList, CheckCircle2, Clock, XCircle, AlertCircle, Filter, Downl
 import { Order, mockOrders } from '../lib/mockData';
 
 const statusColors: Record<string, string> = {
-  'Completada': 'bg-green-100 text-green-800 border-green-200',
+  Completada: 'bg-green-100 text-green-800 border-green-200',
   'En Proceso': 'bg-blue-100 text-blue-800 border-blue-200',
-  'Pendiente': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  Pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   'Cerrada Sin Respuesta': 'bg-gray-100 text-gray-800 border-gray-200',
+};
+
+type SortableOrderField =
+  | 'orderNumber'
+  | 'ownerName'
+  | 'phone'
+  | 'tower'
+  | 'municipalNumber'
+  | 'createdDate'
+  | 'scheduledDate'
+  | 'area'
+  | 'status';
+
+const dateSortableFields: SortableOrderField[] = ['createdDate', 'scheduledDate'];
+
+const getSortableValue = (order: Order, field: SortableOrderField): number | string => {
+  const value = order[field];
+
+  if (dateSortableFields.includes(field)) {
+    const dateValue = value as string | null | undefined;
+    return dateValue ? new Date(dateValue).getTime() : Number.NEGATIVE_INFINITY;
+  }
+
+  if (typeof value === 'string') {
+    return value.toLowerCase();
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return '';
 };
 
 interface FiltersType {
@@ -23,7 +55,7 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof Order>('request_date');
+  const [sortField, setSortField] = useState<SortableOrderField>('createdDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const itemsPerPage = 20;
 
@@ -50,43 +82,45 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
 
   const filteredOrders = useMemo(() => {
     let result = orders.filter((order) => {
+      const orderArea = order.area ?? 'Sin área';
+      const normalizedQuery = searchQuery.toLowerCase();
+
       const matchesSearch =
         searchQuery === '' ||
-        order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.owner_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.orderNumber.toLowerCase().includes(normalizedQuery) ||
+        order.ownerName.toLowerCase().includes(normalizedQuery) ||
         order.phone.includes(searchQuery) ||
-        order.observation.toLowerCase().includes(searchQuery.toLowerCase());
+        order.description.toLowerCase().includes(normalizedQuery);
 
       const matchesStatus =
         filters.status.length === 0 || filters.status.includes(order.status);
 
       const matchesArea =
-        filters.area.length === 0 || filters.area.includes(order.area_specialty);
+        filters.area.length === 0 || filters.area.includes(orderArea);
 
       const matchesTower =
         filters.tower.length === 0 || filters.tower.includes(order.tower);
 
       const matchesDateFrom =
-        !filters.dateFrom || new Date(order.request_date) >= new Date(filters.dateFrom);
+        !filters.dateFrom || new Date(order.createdDate) >= new Date(filters.dateFrom);
 
       const matchesDateTo =
-        !filters.dateTo || new Date(order.request_date) <= new Date(filters.dateTo);
+        !filters.dateTo || new Date(order.createdDate) <= new Date(filters.dateTo);
 
       return matchesSearch && matchesStatus && matchesArea && matchesTower && matchesDateFrom && matchesDateTo;
     });
 
     result.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
+      const aVal = getSortableValue(a, sortField);
+      const bVal = getSortableValue(b, sortField);
 
-      if (aVal === null) return 1;
-      if (bVal === null) return -1;
+      if (aVal === bVal) return 0;
 
       if (sortDirection === 'asc') {
         return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
       }
+
+      return aVal < bVal ? 1 : -1;
     });
 
     return result;
@@ -108,10 +142,10 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
     return { total: orders.length, completed, inProgress, pending, closed };
   }, [orders]);
 
-  const uniqueAreas = useMemo(() => [...new Set(orders.map((o) => o.area_specialty))], [orders]);
+  const uniqueAreas = useMemo(() => [...new Set(orders.map((o) => o.area ?? 'Sin área'))], [orders]);
   const uniqueTowers = useMemo(() => [...new Set(orders.map((o) => o.tower))], [orders]);
 
-  const handleSort = (field: keyof Order) => {
+  const handleSort = (field: SortableOrderField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -120,25 +154,37 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
     }
   };
 
-  const SortIcon = ({ field }: { field: keyof Order }) => {
+  const SortIcon = ({ field }: { field: SortableOrderField }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
   };
 
   const exportToCSV = () => {
-    const headers = ['Número de Orden', 'Propietario', 'Teléfono', 'Torre', 'N° Municipal', 'Fecha Solicitud', 'Método Recepción', 'Observación', 'Área', 'Estado', 'Fecha Agendada'];
+    const headers = [
+      'Número de Orden',
+      'Propietario',
+      'Teléfono',
+      'Torre',
+      'N° Municipal',
+      'Fecha Solicitud',
+      'Aprobado Por',
+      'Descripción',
+      'Área',
+      'Estado',
+      'Fecha Agendada',
+    ];
     const rows = filteredOrders.map(order => [
-      order.order_number,
-      order.owner_name,
+      order.orderNumber,
+      order.ownerName,
       order.phone,
       order.tower,
-      order.municipal_number,
-      order.request_date,
-      order.reception_method,
-      order.observation,
-      order.area_specialty,
+      order.municipalNumber,
+      order.createdDate,
+      order.approvedBy ?? 'Pendiente',
+      order.description,
+      order.area ?? 'Sin área',
       order.status,
-      order.scheduled_date || ''
+      order.scheduledDate || ''
     ]);
 
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
@@ -341,11 +387,11 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
           <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('order_number')}>
-                  <div className="flex items-center gap-1">N° Orden <SortIcon field="order_number" /></div>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('orderNumber')}>
+                  <div className="flex items-center gap-1">N° Orden <SortIcon field="orderNumber" /></div>
                 </th>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('owner_name')}>
-                  <div className="flex items-center gap-1">Propietario <SortIcon field="owner_name" /></div>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('ownerName')}>
+                  <div className="flex items-center gap-1">Propietario <SortIcon field="ownerName" /></div>
                 </th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 hidden sm:table-cell" onClick={() => handleSort('phone')}>
                   <div className="flex items-center gap-1">Teléfono <SortIcon field="phone" /></div>
@@ -353,14 +399,14 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('tower')}>
                   <div className="flex items-center gap-1">Torre <SortIcon field="tower" /></div>
                 </th>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 hidden md:table-cell" onClick={() => handleSort('municipal_number')}>
-                  <div className="flex items-center gap-1">N° Municipal <SortIcon field="municipal_number" /></div>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 hidden md:table-cell" onClick={() => handleSort('municipalNumber')}>
+                  <div className="flex items-center gap-1">N° Municipal <SortIcon field="municipalNumber" /></div>
                 </th>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('request_date')}>
-                  <div className="flex items-center gap-1">Fecha <SortIcon field="request_date" /></div>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('createdDate')}>
+                  <div className="flex items-center gap-1">Fecha <SortIcon field="createdDate" /></div>
                 </th>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 hidden lg:table-cell" onClick={() => handleSort('area_specialty')}>
-                  <div className="flex items-center gap-1">Área <SortIcon field="area_specialty" /></div>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 hidden lg:table-cell" onClick={() => handleSort('area')}>
+                  <div className="flex items-center gap-1">Área <SortIcon field="area" /></div>
                 </th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
                   <div className="flex items-center gap-1">Estado <SortIcon field="status" /></div>
@@ -374,15 +420,15 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
                   onClick={() => setSelectedOrder(order)}
                   className="hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  <td className="px-3 sm:px-4 py-3 text-sm font-medium text-gray-900">{order.order_number}</td>
-                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 truncate max-w-[120px]">{order.owner_name}</td>
+                  <td className="px-3 sm:px-4 py-3 text-sm font-medium text-gray-900">{order.orderNumber}</td>
+                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 truncate max-w-[120px]">{order.ownerName}</td>
                   <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden sm:table-cell">{order.phone}</td>
                   <td className="px-3 sm:px-4 py-3 text-sm text-gray-700">{order.tower}</td>
-                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden md:table-cell">{order.municipal_number}</td>
+                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden md:table-cell">{order.municipalNumber}</td>
                   <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                    {new Date(order.request_date).toLocaleDateString('es-CL')}
+                    {new Date(order.createdDate).toLocaleDateString('es-CL')}
                   </td>
-                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden lg:table-cell">{order.area_specialty}</td>
+                  <td className="px-3 sm:px-4 py-3 text-sm text-gray-700 hidden lg:table-cell">{order.area ?? 'Sin área'}</td>
                   <td className="px-3 sm:px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[order.status]}`}>
                       {order.status}
@@ -437,7 +483,7 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Número de Orden</label>
-                  <p className="text-gray-900 font-semibold">{selectedOrder.order_number}</p>
+                  <p className="text-gray-900 font-semibold">{selectedOrder.orderNumber}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Estado</label>
@@ -450,7 +496,7 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Propietario</label>
-                  <p className="text-gray-900">{selectedOrder.owner_name}</p>
+                  <p className="text-gray-900">{selectedOrder.ownerName}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Teléfono</label>
@@ -465,35 +511,35 @@ export default function OrdersPanel({ searchQuery }: { searchQuery: string }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">N° Municipal</label>
-                  <p className="text-gray-900">{selectedOrder.municipal_number}</p>
+                  <p className="text-gray-900">{selectedOrder.municipalNumber}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
-                  <p className="text-gray-900">{selectedOrder.area_specialty}</p>
+                  <p className="text-gray-900">{selectedOrder.area ?? 'Sin área'}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Fecha Solicitud</label>
-                  <p className="text-gray-900">{new Date(selectedOrder.request_date).toLocaleDateString('es-CL')}</p>
+                  <p className="text-gray-900">{new Date(selectedOrder.createdDate).toLocaleDateString('es-CL')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Método Recepción</label>
-                  <p className="text-gray-900">{selectedOrder.reception_method}</p>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Aprobado Por</label>
+                  <p className="text-gray-900">{selectedOrder.approvedBy ?? 'Pendiente'}</p>
                 </div>
               </div>
 
-              {selectedOrder.scheduled_date && (
+              {selectedOrder.scheduledDate && (
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Fecha Agendada</label>
-                  <p className="text-gray-900">{new Date(selectedOrder.scheduled_date).toLocaleDateString('es-CL')}</p>
+                  <p className="text-gray-900">{new Date(selectedOrder.scheduledDate).toLocaleDateString('es-CL')}</p>
                 </div>
               )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Observación</label>
-                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">{selectedOrder.observation}</p>
+                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">{selectedOrder.description}</p>
               </div>
             </div>
           </div>

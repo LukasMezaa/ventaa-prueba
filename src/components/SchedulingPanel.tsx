@@ -28,70 +28,101 @@ export default function SchedulingPanel() {
   useEffect(() => {
     const loadScheduledAppointments = () => {
       const stored = localStorage.getItem('tickets');
-      if (!stored) return;
+      if (!stored) {
+        setScheduledAppointments([]);
+        return;
+      }
 
       try {
-        const tickets: Ticket[] = JSON.parse(stored);
-        
-        // Filtrar solo tickets aprobados con scheduledDate y técnico asignado
+        const parsed = JSON.parse(stored) as unknown;
+        if (!Array.isArray(parsed)) {
+          setScheduledAppointments([]);
+          return;
+        }
+
+        const normalizeRut = (rut: string) => rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
+
+        const isValidTicket = (ticket: unknown): ticket is Ticket => {
+          if (!ticket || typeof ticket !== 'object') return false;
+          const candidate = ticket as Partial<Ticket>;
+          return (
+            typeof candidate.id === 'string' &&
+            typeof candidate.ticketNumber === 'string' &&
+            typeof candidate.status === 'string' &&
+            typeof candidate.ownerName === 'string' &&
+            typeof candidate.tower === 'string' &&
+            typeof candidate.municipalNumber === 'string' &&
+            typeof candidate.area === 'string'
+          );
+        };
+
+        const tickets = parsed.filter(isValidTicket);
+
         const scheduled = tickets
-          .filter(ticket => 
-            ticket.status === 'Aprobado' && 
-            ticket.scheduledDate !== null && 
-            ticket.scheduledDate !== undefined &&
-            ticket.assignedTechnician
+          .filter(
+            (ticket) =>
+              ticket.status === 'Aprobado' &&
+              typeof ticket.scheduledDate === 'string' &&
+              ticket.scheduledDate.trim().length > 0 &&
+              typeof ticket.assignedTechnician === 'string' &&
+              ticket.assignedTechnician.trim().length > 0
           )
-          .map(ticket => {
-            // scheduledDate puede estar en formato ISO "YYYY-MM-DDTHH:MM:00" o "YYYY-MM-DD HH:MM"
+          .map<ScheduledAppointment>((ticket) => {
+            const scheduledRaw = ticket.scheduledDate as string;
+
             let date = '';
             let time = '';
-            
-            if (ticket.scheduledDate) {
-              if (ticket.scheduledDate.includes('T')) {
-                // Formato ISO: "YYYY-MM-DDTHH:MM:00"
-                const [datePart, timePart] = ticket.scheduledDate.split('T');
-                date = datePart;
-                time = timePart.split(':').slice(0, 2).join(':'); // Solo HH:MM
-              } else {
-                // Formato: "YYYY-MM-DD HH:MM"
-                const parts = ticket.scheduledDate.split(' ');
-                date = parts[0];
-                time = parts[1] || '';
-              }
+
+            if (scheduledRaw.includes('T')) {
+              const [datePart = '', timePart = ''] = scheduledRaw.split('T');
+              date = datePart;
+              time = timePart.split(':').slice(0, 2).join(':');
+            } else {
+              const [datePart = '', timePart = ''] = scheduledRaw.split(' ');
+              date = datePart;
+              time = timePart;
             }
-            
-            // Obtener nombre del técnico
-            const normalizeRut = (rut: string) => {
-              return rut.replace(/\./g, '').replace(/\s/g, '').toLowerCase().trim();
-            };
-            const techRut = ticket.assignedTechnician ? normalizeRut(ticket.assignedTechnician) : '';
-            const technicianName = ticket.assignedTechnician 
-              ? technicianNames[ticket.assignedTechnician] || technicianNames[techRut] || ticket.assignedTechnician
-              : 'Sin asignar';
-            
-            return {
+
+            const normalizedTechnicianRut = ticket.assignedTechnician ? normalizeRut(ticket.assignedTechnician) : '';
+            const technicianName =
+              ticket.assignedTechnician
+                ? technicianNames[ticket.assignedTechnician] ||
+                  technicianNames[normalizedTechnicianRut] ||
+                  ticket.assignedTechnician
+                : 'Sin asignar';
+
+            const baseAppointment: ScheduledAppointment = {
               id: ticket.id,
               ticketNumber: ticket.ticketNumber,
-              date: date,
-              time: time,
+              date,
+              time,
               ownerName: ticket.ownerName,
               property: `${ticket.tower} - Dep. ${ticket.municipalNumber}`,
               area: ticket.area,
               status: ticket.status,
-              assignedTechnician: ticket.assignedTechnician,
-              technicianName: technicianName,
+              technicianName,
             };
+
+            return ticket.assignedTechnician
+              ? { ...baseAppointment, assignedTechnician: ticket.assignedTechnician }
+              : baseAppointment;
           })
+          .filter((appointment) => appointment.date && appointment.time)
           .sort((a, b) => {
-            // Ordenar por fecha y hora
             const dateA = new Date(`${a.date}T${a.time}`);
             const dateB = new Date(`${b.date}T${b.time}`);
+
+            if (Number.isNaN(dateA.getTime()) || Number.isNaN(dateB.getTime())) {
+              return a.ticketNumber.localeCompare(b.ticketNumber);
+            }
+
             return dateA.getTime() - dateB.getTime();
           });
 
         setScheduledAppointments(scheduled);
       } catch (error) {
         console.error('Error loading scheduled appointments:', error);
+        setScheduledAppointments([]);
       }
     };
 

@@ -23,7 +23,11 @@ export default function TicketsPanel() {
   const loadTickets = (): TicketType[] => {
     const stored = localStorage.getItem('tickets');
     if (stored) {
-      return JSON.parse(stored);
+      try {
+        return JSON.parse(stored) as TicketType[];
+      } catch {
+        localStorage.removeItem('tickets');
+      }
     }
     // Si no hay localStorage, inicializar con array vacío (mockTickets están ocultos)
     // Para restaurar tickets mock, cambiar [] por mockTickets
@@ -210,7 +214,7 @@ export default function TicketsPanel() {
       }
     }
     
-    const newTicket: TicketType = {
+    const ticketBase: TicketType = {
       id: String(tickets.length + 1),
       ticketNumber: `TKT-2024-${String(tickets.length + 1).padStart(3, '0')}`,
       ownerName: isAdmin ? formData.ownerName : ownerInfo.name,
@@ -221,14 +225,18 @@ export default function TicketsPanel() {
       municipalNumber: isAdmin ? formData.municipalNumber : ownerInfo.municipalNumber,
       description: formData.description.trim(),
       area: formData.area,
-      scheduledDate: null, // Ya no se usa fecha/hora deseada
+      scheduledDate: null,
       status: 'Pendiente',
       approvedBy: null,
       approvedDate: null,
-      createdDate: new Date().toISOString(), // Fecha de creación automática
+      createdDate: new Date().toISOString(),
       orderNumber: null,
-      preferredShift: formData.preferredShift, // Guardar jornada de preferencia
-      photo: photoBase64, // Guardar foto en base64
+    };
+
+    const newTicket: TicketType = {
+      ...ticketBase,
+      ...(formData.preferredShift ? { preferredShift: formData.preferredShift } : {}),
+      ...(photoBase64 ? { photo: photoBase64 } : {}),
     };
     
     try {
@@ -308,75 +316,100 @@ export default function TicketsPanel() {
 
     let approvedTicket: TicketType | null = null;
 
-    const updatedTickets = tickets.map(ticket => {
-      if (ticket.id === ticketId) {
-        const now = new Date().toISOString();
-        const updatedTicket: TicketType = {
-          ...ticket,
-          area: approve && editableArea ? editableArea : ticket.area, // Usar área editable si se aprobó
-          status: approve ? 'Aprobado' : 'Rechazado',
-          approvedBy: approve ? user?.email || '' : null,
-          approvedDate: approve ? now : null,
-          orderNumber: approve ? `ORD-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}` : null,
-          assignedTechnician: approve ? selectedTechnician : undefined,
-          // Guardar fecha cuando cambia a "Aprobado"
-          statusChangedToAprobado: approve && ticket.status !== 'Aprobado' ? now : ticket.statusChangedToAprobado,
-        };
-        
-        // Si se aprueba, guardar la fecha y hora de cita acordada
-        if (approve && appointmentDate && appointmentTime) {
-          updatedTicket.scheduledDate = `${appointmentDate}T${appointmentTime}:00`;
-          updatedTicket.preferredShift = appointmentShift;
-          approvedTicket = updatedTicket;
-        }
-        
-        return updatedTicket;
+    const updatedTickets = tickets.map((ticket) => {
+      if (ticket.id !== ticketId) {
+        return ticket;
       }
-      return ticket;
+
+      const now = new Date().toISOString();
+      const updates: Partial<TicketType> = {
+        status: approve ? 'Aprobado' : 'Rechazado',
+        approvedBy: approve ? user?.email ?? '' : null,
+        approvedDate: approve ? now : null,
+        orderNumber: approve ? `ORD-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}` : null,
+        ...(approve ? {} : { scheduledDate: null }),
+      };
+
+      if (approve) {
+        if (editableArea.trim()) {
+          updates.area = editableArea;
+        }
+
+        if (selectedTechnician) {
+          updates.assignedTechnician = selectedTechnician;
+        }
+
+        if (appointmentDate && appointmentTime) {
+          updates.scheduledDate = `${appointmentDate}T${appointmentTime}:00`;
+        }
+
+        if (appointmentShift) {
+          updates.preferredShift = appointmentShift;
+        }
+
+        if (ticket.status !== 'Aprobado') {
+          updates.statusChangedToAprobado = now;
+        }
+      }
+
+      const updatedTicket: TicketType = {
+        ...ticket,
+        ...updates,
+      };
+
+      if (approve) {
+        approvedTicket = updatedTicket;
+      }
+
+      return updatedTicket;
     });
 
     setTickets(updatedTickets);
 
     // Si se aprobó el ticket, crear un registro en Seguimiento de Trabajos
-    if (approve && approvedTicket) {
-      const ticket = approvedTicket as TicketType;
-      if (ticket.orderNumber) {
-        // Usar la fecha de la cita programada (scheduledDate) si está disponible, 
-        // de lo contrario usar la fecha de aprobación
-        let workStartDate = '';
-        if (ticket.scheduledDate) {
-          // scheduledDate está en formato ISO "YYYY-MM-DDTHH:MM:00", extraer solo la fecha
-          workStartDate = ticket.scheduledDate.split('T')[0];
-        } else if (ticket.approvedDate) {
-          workStartDate = ticket.approvedDate.split('T')[0];
-        } else {
-          workStartDate = new Date().toISOString().split('T')[0];
-        }
-        
-        const newWork = {
-          id: `work-${ticket.id}`,
-          orderNumber: ticket.orderNumber,
-          ownerName: ticket.ownerName,
-          property: `${ticket.tower} - ${ticket.municipalNumber}`,
-          area: editableArea || ticket.area, // Usar área editable si está disponible
-          status: 'Pendiente de Visita',
-          workDetails: [] as Array<{ text: string; image?: string; date: string }>,
-          startDate: workStartDate,
-          updateDate: workStartDate, // Inicialmente igual a startDate
-          assignedTechnician: ticket.assignedTechnician,
-        };
+    if (approve) {
+      if (hasOrderNumber(approvedTicket)) {
+        const ticketForWork = approvedTicket as TicketType & { orderNumber: string };
+      const toDateOnly = (value: string) => value.slice(0, 10);
+      const workStartDate =
+        ticketForWork.scheduledDate?.slice(0, 10) ??
+        (ticketForWork.approvedDate ? toDateOnly(ticketForWork.approvedDate) : new Date().toISOString().slice(0, 10));
 
-        // Guardar en localStorage
-        const existingWorks = localStorage.getItem('workTracking');
-        let works = existingWorks ? JSON.parse(existingWorks) : [];
-        // Verificar si ya existe para evitar duplicados
-        const exists = works.some((w: any) => w.orderNumber === newWork.orderNumber);
-        if (!exists) {
-          works.push(newWork);
-          localStorage.setItem('workTracking', JSON.stringify(works));
-          // Disparar evento para que TrackingPanel lo capture
-          window.dispatchEvent(new CustomEvent('newWorkCreated', { detail: newWork }));
+      const baseWork: WorkTrackingRecord = {
+        id: `work-${ticketForWork.id}`,
+        orderNumber: ticketForWork.orderNumber,
+        ownerName: ticketForWork.ownerName,
+        property: `${ticketForWork.tower} - ${ticketForWork.municipalNumber}`,
+        area: (editableArea && editableArea.trim()) ? editableArea : ticketForWork.area,
+        status: 'Pendiente de Visita',
+        workDetails: [],
+        startDate: workStartDate,
+        updateDate: workStartDate,
+      };
+
+      const newWork: WorkTrackingRecord = ticketForWork.assignedTechnician
+        ? { ...baseWork, assignedTechnician: ticketForWork.assignedTechnician }
+        : baseWork;
+
+      const existingWorks = localStorage.getItem('workTracking');
+      let works: WorkTrackingRecord[] = [];
+      if (existingWorks) {
+        try {
+          const parsed = JSON.parse(existingWorks) as unknown;
+          if (Array.isArray(parsed)) {
+            works = parsed.filter(isWorkTrackingRecord);
+          }
+        } catch {
+          works = [];
         }
+      }
+
+      const exists = works.some((w) => w.orderNumber === newWork.orderNumber);
+      if (!exists) {
+        works.push(newWork);
+        localStorage.setItem('workTracking', JSON.stringify(works));
+        window.dispatchEvent(new CustomEvent('newWorkCreated', { detail: newWork }));
+      }
       }
     }
 
@@ -418,6 +451,16 @@ export default function TicketsPanel() {
       borderColor: 'border-purple-300',
     },
   };
+
+const fallbackStatusConfig = {
+  color: 'text-gray-700',
+  icon: Clock,
+  bgColor: 'bg-gray-100',
+  textColor: 'text-gray-700',
+  borderColor: 'border-gray-200',
+};
+
+const getStatusConfig = (status: string) => statusConfig[status] ?? fallbackStatusConfig;
 
   // Filtrar tickets según el rol y ordenarlos por fecha de creación (más reciente primero)
   const filteredTickets = (() => {
@@ -487,6 +530,45 @@ export default function TicketsPanel() {
       return dateB - dateA; // Orden descendente
     });
   })();
+
+type WorkTrackingRecord = {
+  id: string;
+  orderNumber: string;
+  ownerName: string;
+  property: string;
+  area: string;
+  status: string;
+  workDetails: Array<{ text: string; image?: string; date: string }>;
+  startDate: string;
+  updateDate: string;
+  assignedTechnician?: string;
+};
+
+const isWorkTrackingRecord = (value: unknown): value is WorkTrackingRecord => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const record = value as Partial<WorkTrackingRecord>;
+
+  return (
+    typeof record.id === 'string' &&
+    typeof record.orderNumber === 'string' &&
+    typeof record.ownerName === 'string' &&
+    typeof record.property === 'string' &&
+    typeof record.area === 'string' &&
+    typeof record.status === 'string' &&
+    typeof record.startDate === 'string' &&
+    typeof record.updateDate === 'string' &&
+    Array.isArray(record.workDetails)
+  );
+};
+
+const hasOrderNumber = (
+  ticket: TicketType | null
+): ticket is TicketType & { orderNumber: string } => {
+  return !!ticket && typeof ticket.orderNumber === 'string' && ticket.orderNumber.length > 0;
+};
 
   return (
     <div className="space-y-6">
@@ -623,7 +705,7 @@ export default function TicketsPanel() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredTickets.map((ticket) => {
-                const config = statusConfig[ticket.status];
+                const config = getStatusConfig(ticket.status);
                 const Icon = config.icon;
                 return (
                   <tr key={ticket.id} className="hover:bg-gray-50">
@@ -1004,7 +1086,7 @@ export default function TicketsPanel() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Estado</label>
                   {(() => {
-                    const config = statusConfig[selectedTicket.status];
+                    const config = getStatusConfig(selectedTicket.status);
                     const Icon = config.icon;
                     return (
                       <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${config.bgColor} ${config.textColor}`}>

@@ -1,4 +1,4 @@
-import { Activity, Clock, CheckCircle, XCircle, FileText, Eye, X, Calendar, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Activity, Clock, CheckCircle, XCircle, FileText, Eye, X, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 // import { mockTickets } from '../lib/mockData'; // Ocultado - descomentar si se necesita restaurar tickets mock
 import { Ticket as TicketType } from '../lib/mockData';
@@ -80,6 +80,16 @@ export default function TrazabilityPanel() {
       description: 'Ticket finalizado. La visita se realizó y el problema fue resuelto',
     },
   };
+
+const fallbackStatusConfig = {
+  color: 'text-gray-700',
+  icon: Clock,
+  bgColor: 'bg-gray-100',
+  textColor: 'text-gray-700',
+  description: 'Estado en actualización. Revisa nuevamente más tarde.',
+};
+
+const getStatusConfig = (status: string) => statusConfig[status] ?? fallbackStatusConfig;
 
   const getStatusCounts = () => {
     return {
@@ -246,7 +256,7 @@ export default function TrazabilityPanel() {
         ) : (
           <div className="divide-y divide-gray-200">
             {ownerTickets.map((ticket) => {
-              const config = statusConfig[ticket.status];
+              const config = getStatusConfig(ticket.status);
               const StatusIcon = config.icon;
               const steps = getProcessSteps(ticket);
               const daysSince = getDaysSinceCreation(ticket.createdDate);
@@ -447,7 +457,7 @@ export default function TrazabilityPanel() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-0.5">Estado</label>
                   {(() => {
-                    const config = statusConfig[selectedTicket.status];
+                    const config = getStatusConfig(selectedTicket.status);
                     const Icon = config.icon;
                     return (
                       <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}>
@@ -508,7 +518,7 @@ export default function TrazabilityPanel() {
                   <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-medium text-blue-900 mb-0.5">Información del Estado</p>
-                    <p className="text-xs text-blue-800">{statusConfig[selectedTicket.status].description}</p>
+                    <p className="text-xs text-blue-800">{getStatusConfig(selectedTicket.status).description}</p>
                     {selectedTicket.orderNumber && (
                       <p className="text-xs text-blue-800 mt-1.5">
                         Tu solicitud ha sido procesada y se encuentra en seguimiento. Puedes revisar el progreso en el módulo de seguimiento de trabajos.
